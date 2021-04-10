@@ -1,2 +1,2 @@
-# vortonsim
-Fluid simulation based on vorton method
+# VortexParticleSimulation
+Fluid simulation based on vortex particle method.
