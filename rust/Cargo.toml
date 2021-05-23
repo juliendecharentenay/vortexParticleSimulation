@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "vortex-particle-simulation",
+  "cli",
+  "wasm",
+]

@@ -1,0 +1,15 @@
+[package]
+name = "cli"
+version = "0.1.0"
+authors = ["Julien de Charentenay <julien@charentenay.me>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "3.0.0-beta.2"
+simple-error = "0.2"
+web-view = { version = "0.5.4", features = [ "edge" ] }
+serde = "1.0"
+serde_json = "1.0"
+vortex-particle-simulation = { path = "../vortex-particle-simulation" }
