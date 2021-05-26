@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 clap = "3.0.0-beta.2"
 simple-error = "0.2"
-web-view = { version = "0.5.4", features = [ "edge" ] }
 serde = "1.0"
 serde_json = "1.0"
 vortex-particle-simulation = { path = "../vortex-particle-simulation" }
