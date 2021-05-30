@@ -3,6 +3,8 @@ const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const webpack = require("webpack");
 
 module.exports = {
+  publicPath: '/vpm/',
+  productionSourceMap: false,
   pages: {
     index: "src/pages/index/main.js",
   },
@@ -16,7 +18,8 @@ module.exports = {
           new Plugin({
             crateDirectory: path.resolve(__dirname, "../rust/wasm"),
             outDir: path.resolve(__dirname, "./src/pkg"),
-            forceMode: "production", // "development"
+            // forceMode: "development",
+            forceMode: "production",
           })
       )
       .end()
