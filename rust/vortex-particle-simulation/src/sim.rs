@@ -1,5 +1,5 @@
 use std::error::Error;
-use nalgebra::{Vector3, Point3};
+use crate::algebra::{Vector3, Point3};
 
 mod uniformgrid;
 pub mod vorton;

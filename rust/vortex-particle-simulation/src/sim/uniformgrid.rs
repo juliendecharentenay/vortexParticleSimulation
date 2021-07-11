@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use nalgebra::{Point3, Vector3};
+use crate::algebra::{Point3, Vector3};
 
 pub struct CellIndexIterator<'a> {
     uniform_grid: &'a UniformGrid,

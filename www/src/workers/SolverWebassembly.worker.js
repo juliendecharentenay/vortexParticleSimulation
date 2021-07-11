@@ -2,6 +2,7 @@
  * WebWorker to handle the running of the solver in webassembly
  */
 {
+  // (a) Definition of variables
   let wasm = null;
   let initializing = false;
   let initialized = false;
@@ -10,7 +11,7 @@
   let timeout = null;
   let start_performance = null;
 
-
+  // (b) Handling function declaration
   let handle_make = (evt) => {
     initializing = true;
     wasm = import("@/pkg");
@@ -59,6 +60,7 @@
     }
   };
 
+  // (c) Message handling
   onmessage = (evt) => {
     if (evt.data instanceof Object) {
       // console.log("SolverWebassembly: Received event: ", evt.data);

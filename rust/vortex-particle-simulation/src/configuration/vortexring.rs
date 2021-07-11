@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use nalgebra::{Point3, Vector3};
+use crate::algebra::{Point3, Vector3};
 
 use crate::configuration::{InitialConditions};
 

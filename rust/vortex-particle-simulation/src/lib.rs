@@ -3,8 +3,9 @@ use std::ptr;
 
 use serde::{Serialize, Deserialize};
 use serde_json;
-use nalgebra::{Vector3};
+use algebra::{Vector3};
 
+mod algebra;
 mod sim;
 mod configuration;
 mod profiler;

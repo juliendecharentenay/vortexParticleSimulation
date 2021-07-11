@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
-use nalgebra::{Point3, Vector3};
+
+use crate::algebra::{Point3, Vector3};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Vorton {
