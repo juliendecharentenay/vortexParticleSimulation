@@ -22,10 +22,10 @@ pub mod functions {
 
     pub fn make_vortons(configuration: &Configuration) -> Result<Vec<Vorton>, Box<dyn Error>> {
         let mut n_cells = configuration.n_vortons;
-        let vortons = make_vortons_from_ncells(n_cells, configuration.get_initial_conditions())?;
+        let vortons = make_vortons_from_ncells(n_cells, *configuration.get_initial_conditions())?;
         if vortons.len() > 0 {
             n_cells = n_cells * configuration.n_vortons/vortons.len(); 
-            make_vortons_from_ncells(n_cells, configuration.get_initial_conditions())
+            make_vortons_from_ncells(n_cells, *configuration.get_initial_conditions())
         } else {
             Ok(vortons)
         }

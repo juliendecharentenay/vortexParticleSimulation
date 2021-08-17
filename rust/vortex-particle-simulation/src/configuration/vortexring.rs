@@ -4,7 +4,7 @@ use crate::algebra::{Point3, Vector3};
 
 use crate::configuration::{InitialConditions};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct VortexRing {
     pub center: Point3<f64>,
     pub direction: Vector3<f64>,

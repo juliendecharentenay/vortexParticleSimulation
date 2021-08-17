@@ -14,7 +14,7 @@ pub use sim::{Vorton};
 pub use configuration::{InitialConditions, Configuration};
 pub use profiler::Profiler;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Simulation {
     configuration: Configuration,
     time: f64,
@@ -24,6 +24,18 @@ pub struct Simulation {
 }
 
 impl Simulation {
+    pub fn new() -> Simulation {
+        let configuration = Configuration::new();
+        let free_stream_velocity = configuration.get_initial_conditions().free_stream_velocity();
+        Simulation{
+            configuration,
+            time: 0f64,
+            iteration: 0,
+            vortons: Vec::new(),
+            free_stream_velocity,
+        }
+    }
+
     /*
      * Accessor functions
      */

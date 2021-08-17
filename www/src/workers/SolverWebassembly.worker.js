@@ -17,6 +17,8 @@
     wasm = import("@/pkg");
     wasm.then((w) => {
       w.make_from_configuration(JSON.stringify(evt.data.make));
+      self.postMessage({ on_initialized: true, iteration: w.iteration(), time: w.time() });
+      self.postMessage({ on_simulation: true, simulation: w.get_simulation() });
       initializing = false;
       initialized = true;
     });
@@ -35,8 +37,10 @@
         starting = false;
         interval = setInterval(() => {
           w.step(evt.data.start);
+          self.postMessage({ on_iterated: true, iteration: w.iteration(), time: w.time() });
+          self.postMessage({ on_simulation: true, simulation: w.get_simulation() });
         }, 0);
-      });
+      });// .catch(console.error);
     } else {
       throw "Start is called before the solver is initialized";
     }
@@ -61,7 +65,7 @@
   };
 
   // (c) Message handling
-  onmessage = (evt) => {
+  self.onmessage = (evt) => {
     if (evt.data instanceof Object) {
       // console.log("SolverWebassembly: Received event: ", evt.data);
       if (evt.data.make) {

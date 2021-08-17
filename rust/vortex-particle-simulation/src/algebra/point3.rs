@@ -1,7 +1,7 @@
 /*
  * Point class
  */
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Sub};
 use num::Float;
 
 use serde::{Serialize, Deserialize};
@@ -17,9 +17,14 @@ pub struct Point3<T>
 }
 
 impl<T> Point3<T> 
+where T: Copy
 {
     pub fn new(x: T, y: T, z: T) -> Point3<T> {
         Point3 { x, y, z, }
+    }
+
+    pub fn as_array(&self) -> [T; 3] {
+        [self.x, self.y, self.z]
     }
 }
 

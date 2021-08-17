@@ -100,7 +100,7 @@
                   focus:outline-none
                   focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
                 "
-                @click="navigate_to('player')"
+                @click="navigate_to('viewer')"
               >
                 Start simulation
               </button>
@@ -115,8 +115,8 @@
       <FooterSection />
     </div>
 
-    <!-- page: player -->
-    <div class="bg-white" v-else-if="page == 'player'">
+    <!-- page: viewer -->
+    <div class="bg-white" v-else-if="page == 'viewer'">
       <SetupToolbar>
         <Breadcrumb
           :home="{
@@ -133,17 +133,16 @@
               }.bind(this),
             },
             {
-              name: 'Player',
+              name: 'Viewer',
               href: '#',
               onClick: function () {
-                this.navigate_to('player');
+                this.navigate_to('viewer');
               }.bind(this),
             },
           ]"
         />
       </SetupToolbar>
-      <Player />
-      <Solver />
+      <Viewer />
     </div>
 
     <!-- Unknown page -->
@@ -185,9 +184,8 @@
 <script>
 import Breadcrumb from "@/components/Breadcrumb.vue";
 import FooterSection from "@/components/FooterSection.vue";
-import Player from "@/components/Player.vue";
+import Viewer from "@/components/Viewer.vue";
 import SetupToolbar from "@/components/SetupToolbar.vue";
-import Solver from "@/components/Solver.vue";
 import VortexParticleSimulationScenario from "@/components/VortexParticleSimulationScenario.vue";
 import VortexParticleSimulationSimulationSetup from "@/components/VortexParticleSimulationSimulationSetup.vue";
 import VortexParticleSimulationVortexRingSetup from "@/components/VortexParticleSimulationVortexRingSetup.vue";
@@ -237,9 +235,8 @@ export default {
     VortexParticleSimulationSimulationSetup,
     VortexParticleSimulationVortexRingSetup,
     SetupToolbar,
-    Solver,
     UndoRedo,
-    Player,
+    Viewer,
   },
 };
 </script>
