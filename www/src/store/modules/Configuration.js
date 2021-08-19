@@ -47,7 +47,7 @@ const mutations = {
     state.simulation_setup = setup;
   },
   set_initial_condition_vortex_ring(state, data) {
-    state.InitialConditionsVortexRing = data;
+    state.InitialConditionVortexRing = data;
   },
 };
 
