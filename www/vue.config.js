@@ -8,6 +8,15 @@ module.exports = {
   pages: {
     index: "src/pages/index/main.js",
   },
+  configureWebpack: {        
+    devServer: {
+      headers: {
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin",
+      },
+      // mimeTypes: { 'application/wasm': ['wasm'] },
+    },
+  },
   chainWebpack: (config) => {
     // rust wasm bindgen https://github.com/rustwasm/wasm-bindgen
     config
@@ -20,6 +29,8 @@ module.exports = {
             outDir: path.resolve(__dirname, "./src/pkg"),
             // forceMode: "development",
             forceMode: "production",
+	    // extraArgs: '--target web'
+	    // extraArgs: '--target no-modules'
           })
       )
       .end()
@@ -40,6 +51,13 @@ module.exports = {
       .test(/\.worker\.js$/)
       .use("worker-loader")
       .loader("worker-loader")
+      .end();
+
+    config.module
+      .rule("loader-import-meta")
+      .test(/index.js$/)
+      .use('@open-wc/webpack-import-meta-loader')
+      .loader('@open-wc/webpack-import-meta-loader')
       .end();
   },
 };

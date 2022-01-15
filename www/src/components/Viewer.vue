@@ -9,41 +9,37 @@
 
     </div>
     <!-- <div class="absolute inset-x-0 bottom-0 h-10 inset-x-0 bg-gray-700"><p>Bottom element</p></div> -->
-    <div class="absolute inset-x-0 bottom-3" id="controls">
-      <div class="flex">
-        <span class="mx-auto relative z-0 inline-flex shadow-sm rounded-md">
-          <button
-            type="button"
-            class="
-              relative
-              inline-flex
-              items-center
-              px-4
-              py-2
-              rounded-md
-              border border-gray-300
-              bg-white
-              text-sm
-              font-medium
-              text-gray-700
-              hover:bg-gray-50
-              focus:z-10
-              focus:outline-none
-              focus:ring-1 focus:ring-indigo-500
-              focus:border-indigo-500
-            "
-            @click="solving ? stop() : start()"
-          >
-            {{ solving ? "Stop" : "Simulate" }}
-          </button>
-        </span>
-      </div>
-    </div>
+
+    <ViewerPlayerControl 
+          :allow_recording="true"
+          :allow_playing="true"
+          :allow_rewind="false"
+          :controls="true"
+          :is_recording="recording"
+          :is_playing="solving"
+          :video_current_time="time"
+          @on_record="record()"
+          @on_play="start()"
+          @on_stop="stop()"
+          @error="on_error($event);"
+        />
 
     <!-- Feedback -->
-    <div class="absolute bottom-3 right-3 text-gray-400" id="player-feedback" v-if="time && iteration">
-      {{ time.toFixed(1) }}s [Iteration {{ iteration }}]
+    <div class="absolute top-3 right-3 text-gray-400" id="player-feedback" v-if="time && iteration">
+      {{ time.toFixed(1) }}s [Iteration {{ iteration }}, fps {{ fps }}]
     </div>
+
+    <!-- fps Calculator -->
+    <CalculateFps class="hidden"
+         @fps="fps = $event"
+         ref="calculate_fps" />
+
+    <!-- Handle recording and downloading -->
+    <MediaRecorder
+         @error="on_error($event.msg, $event.e);"
+         @on_processing="mediarecorder_on_processing($event)"
+         ref="media_recorder" />
+
   </div>
 </template>
 <script>
@@ -72,10 +68,17 @@ class SolverWebassembly {
 
   start(time_step) {
     if (!this.#initialized) {
-      this.#worker.postMessage({ make: this.#configuration });
+      this.#worker.postMessage({ make: this.#configuration, use_simulation_format: this.use_simulation_format() });
       this.#initialized = true;
     }
     this.#worker.postMessage({ start: time_step });
+  }
+
+  use_simulation_format() {
+    let s = new URL(window.location).searchParams;
+    let r = s.get("format");
+    if (r === null) {r = "array_buffer";}
+    return r;
   }
 
   stop() {
@@ -83,17 +86,31 @@ class SolverWebassembly {
   }
 }
 
+import CalculateFps from "@/shared/components/CalculateFps";
+import ViewerPlayerControl from "@/shared/components/ViewerPlayerControl";
+import MediaRecorder from "@/shared/components/MediaRecorder";
+
+// import init, { shared_memory, viewer_start, viewer_draw, viewer_element_create } from "@/pkg/index.js";
 
 export default {
   name: "Viewer",
+  components: {
+    ViewerPlayerControl,
+    CalculateFps,
+    MediaRecorder,
+  },
   data: function () {
     return {
       viewer_id: "viewer",
       canvas_id: "viewer-canvas",
       solver: null,
       wasm: null,
+      viewer: null,
       iteration: null,
-      time: null
+      time: null,
+      fps: null,
+      processing: null,
+      recording: false,
     };
   },
 
@@ -106,12 +123,12 @@ export default {
   mounted: function () {
     this.$store.dispatch("solver/initialize");
 
-    this.wasm = import("@/pkg");
-    this.wasm
+    import("@/pkg")
     .then((w) => { 
-       w.viewer_start(this.canvas_id); 
-       // w.viewer_element_create(JSON.stringify({type: "Demo"}));
-       w.viewer_element_create(JSON.stringify({type: "VortonRender"}));
+       this.wasm = w;
+       this.viewer = this.wasm.Viewer.new(this.canvas_id);
+       this.viewer.create(JSON.stringify({type: "VortonRender"}));
+       // this.viewer.create(JSON.stringify({type: "Demo"}));
     })
     .catch(console.error);
 
@@ -124,25 +141,49 @@ export default {
   },
 
   methods: {
+    mediarecorder_on_processing: function(evt) {
+      if (evt) { 
+        this.processing = {'message': 'Processing video recording'}; 
+      } else { 
+        this.processing = null; 
+      }
+    },
     set_canvas_size: function() {
-      var p = this.get_viewer_element();
-      var c = document.getElementById(this.canvas_id);
+      var p = document.getElementById(this.viewer_id);
+      var c = this.get_canvas();
       c.width = p.clientWidth;
       c.height = p.clientHeight;
     },
 
+    get_canvas: function () {
+      return document.getElementById(this.canvas_id);
+    },
+
+/*
     get_viewer_element: function () {
       return document.getElementById(this.viewer_id);
     },
+*/
 
     stop: function () {
       this.$store.commit("solver/stop");
       this.get_solver().stop(this.$store.state.solver.time_step);
+      if (this.recording) {
+        this.$refs.media_recorder.stop();
+        this.recording = false;
+      }
     },
 
     start: function () {
       this.$store.commit("solver/start");
       this.get_solver().start(this.$store.state.solver.time_step);
+    },
+
+    record: function () {
+      this.$store.commit("solver/start");
+      this.get_solver().start(this.$store.state.solver.time_step);
+      this.$refs.media_recorder.record(this.get_canvas().captureStream(30));
+      this.recording = true;
     },
 
     /* Solver elements */
@@ -151,7 +192,7 @@ export default {
         this.solver = new SolverWebassembly(
           this.$store.getters["configuration/as_configuration"],
           (evt) => { this.on_message(evt); },
-          (evt) => { this.on_error(evt); }
+          (evt) => { this.on_error("Error in get_solver", evt); }
         );
       }
       return this.solver;
@@ -161,15 +202,44 @@ export default {
       if (evt.data !== undefined) {
         if (evt.data.on_initialized || evt.data.on_iterated) {
           this.iteration = evt.data.iteration; this.time = evt.data.time;
+          this.$refs.calculate_fps.tick();
+
         } else if (evt.data.on_simulation) {
-          this.wasm.then((w) => {w.viewer_draw(evt.data.simulation);});
+          if (this.wasm !== null && this.viewer !== null) { 
+            let s = this.wasm.Solver.from_json(evt.data.simulation);
+            this.viewer.draw(s);
+            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+          }
+
+        } else if (evt.data.on_simulation_array_buffer) {
+          if (this.wasm !== null && this.viewer !== null) { 
+            let s = this.wasm.Solver.from_array_buffer(evt.data.simulation);
+            this.viewer.draw(s);
+            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+          }
+
+
+        } else if (evt.data.on_simulation_shared_array_buffer) {
+          if (this.wasm !== null && this.viewer !== null) { 
+            let s = this.wasm.Solver.from_shared_array_buffer(evt.data.simulation);
+            this.viewer.draw(s);
+            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+          }
+
+        } else if (evt.data.on_simulation_solver) {
+          if (this.wasm !== null && this.viewer !== null) { 
+            this.viewer.draw(evt.data.simulation);
+            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+          }
+
         } else {
           console.log("Event " + evt.data + " is not handled");
         }
       }
     },
-    on_error: function(evt) {
-      console.error("Viewer::on_error", evt);
+
+    on_error: function(msg, evt) {
+      console.error("Viewer::on_error", msg, evt);
     }
   },
 };

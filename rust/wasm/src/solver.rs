@@ -1,91 +1,98 @@
 
 use wasm_bindgen::{JsValue, prelude::*};
 use web_sys::{console};
+use bincode;
+use js_sys::{SharedArrayBuffer, ArrayBuffer, Uint8Array};
 
 use vortex_particle_simulation::{Simulation, Profiler};
-
-use crate::{from_vpm_simulation};
-
-static mut SIMULATION: Option<Simulation> = None;
 
 #[wasm_bindgen(module = "/functions.js")]
 extern "C" {
     fn time_now_ms() -> f64;
 }
 
-
 #[wasm_bindgen]
-pub fn make_from_configuration(content: &str) -> Result<(), JsValue> {
-    console::log_1(&"make_from_configuration".into());
-    // let content: Configuration = serde_wasm_bindgen::from_value(content)?;
-    match Simulation::make_from_configuration(content.as_bytes()) {
-        Ok(sim) => {
-            console::log_1(&JsValue::from_str(format!("Simulation constructed:").as_str()));
-            console::log_1(&JsValue::from_str(format!("Number of vortons: {}", sim.vortons().len()).as_str()));
-            unsafe { 
-                SIMULATION = Some(sim); 
-            };
-            Ok(())
-        },
-        Err(e)  => Err(JsValue::from_str(format!("{}", e).as_str())),
-    }
+pub struct Solver {
+    simulation: Simulation,
 }
 
 #[wasm_bindgen]
-pub fn step(time_step: f64) -> Result<(), JsValue> {
-    let mut profiler = Profiler::new(|| {time_now_ms()}).unwrap();
-    match unsafe { &mut SIMULATION } {
-        Some(sim) => 
-            match sim.step(time_step, &mut profiler) {
+impl Solver {
+    pub fn from_configuration(content: &str) -> Result<Solver, JsValue> {
+      match Simulation::make_from_configuration(content.as_bytes()) {
+        Ok(sim) => Ok(Solver { simulation: sim}),
+        Err(e)  => Err(JsValue::from_str(format!("{}", e).as_str())),
+      }
+    }
+
+    pub fn from_json(content: JsValue) -> Result<Solver, JsValue> {
+        match JsValue::into_serde(&content) {
+            Ok(sim) => Ok(Solver { simulation: sim} ),
+            Err(e) => Err(JsValue::from_str(format!("Unable to parse to simulation. Error {}", e).as_str())),
+        }
+    }
+
+    pub fn from_array_buffer(content: ArrayBuffer) -> Result<Solver, JsValue> {
+        let a = Uint8Array::new(&content);
+        match bincode::deserialize(&a.to_vec()[..]) {
+            Ok(sim) => Ok(Solver { simulation: sim } ),
+            Err(e) => Err(JsValue::from_str(format!("Unable to retrieve simulation from ArrayBuffer. Error {}", e).as_str())),
+        }
+    }
+
+    pub fn from_shared_array_buffer(content: SharedArrayBuffer) -> Result<Solver, JsValue> {
+        let a = Uint8Array::new(&content);
+        match bincode::deserialize(&a.to_vec()[..]) {
+            Ok(sim) => Ok(Solver { simulation: sim } ),
+            Err(e) => Err(JsValue::from_str(format!("Unable to retrieve simulation from SharedArrayBuffer. Error {}", e).as_str())),
+        }
+    }
+
+    pub fn iteration(&self) -> JsValue {
+      JsValue::from_f64(self.simulation.iteration() as f64)
+    }
+
+    pub fn time(&self) -> JsValue {
+        JsValue::from_f64(self.simulation.time())
+    }
+
+    pub fn to_json(&self) -> JsValue {
+        JsValue::from_serde(&self.simulation).unwrap()
+    }
+
+    pub fn to_array_buffer(&self) -> ArrayBuffer {
+        let b = bincode::serialize(&self.simulation).unwrap();
+        Uint8Array::from(&b[..]).buffer()
+    }
+
+    pub fn to_shared_array_buffer(&self) -> SharedArrayBuffer {
+        let b = bincode::serialize(&self.simulation).unwrap();
+        let mut r = SharedArrayBuffer::new(b.len() as u32);
+        let mut a = Uint8Array::new(&r);
+        for i in 0..b.len() { a.set_index(i as u32, b[i]); }
+        r
+    }
+
+    pub fn step(&mut self, time_step: f64) -> Result<(), JsValue> {
+        let mut profiler = Profiler::new(|| {time_now_ms()}).unwrap();
+
+         match self.simulation.step(time_step, &mut profiler) {
                 Ok(_) => {
                     console::log_1(&JsValue::from_str(
-                            format!("Iteration {} - {:.2}s [{}]", sim.iteration(), sim.time(),
+                            format!("Iteration {} - {:.2}s [{}]", self.simulation.iteration(), self.simulation.time(),
                                     profiler.as_magnitude()
                                     .iter().fold("".to_string(), |r, v| format!("{}{}{}: {:.1}ms", r, if r.is_empty() {""} else {"; "}, v.0, v.1))
                                     ).as_str()));
                     Ok(())
                 },
                 Err(e) => Err(JsValue::from_str(format!("{}", e).as_str())),
-            },
-        None => Err(JsValue::from_str("Simulation is not initialized")),
+            }
     }
 }
 
-#[wasm_bindgen]
-pub fn iteration() -> JsValue {
-    match unsafe { &SIMULATION } {
-        Some(sim) => JsValue::from_f64(sim.iteration() as f64),
-        None => JsValue::from_f64(0f64),
-    }
-}
-
-#[wasm_bindgen]
-pub fn time() -> JsValue {
-    match unsafe { &SIMULATION } {
-        Some(sim) => JsValue::from_f64(sim.time()),
-        None => JsValue::from_f64(0f64),
-    }
-}
-
-#[wasm_bindgen]
-pub fn get_simulation() -> JsValue {
-    match unsafe { &SIMULATION } {
-        Some(sim) => from_vpm_simulation(sim),
-        None => from_vpm_simulation(&Simulation::new()),
-    }
-}
-
-pub fn get_simulation_deprec() -> Simulation {
-    console::log_1(&JsValue::from_str("solver::get_simulation"));
-    match unsafe { &SIMULATION } {
-        Some(sim) => {
-            console::log_1(&JsValue::from_str("Simulaiton exists... clone"));
-            sim.clone()
-        },
-        None => {
-            console::log_1(&JsValue::from_str("Simulaiton DOES NOT exists... make a new one"));
-            Simulation::new()
-        },
+impl Solver {
+    pub fn get_simulation(&self) -> &Simulation {
+        &self.simulation
     }
 }
 

@@ -4,21 +4,49 @@
 {
   // (a) Definition of variables
   let wasm = null;
+  let wasm_solver = null;
   let initializing = false;
   let initialized = false;
   let starting = false;
   let interval = null;
   let timeout = null;
   let start_performance = null;
+  let use_simulation_format = 1; // 0 -> json, 1 -> array buffer (default), 2 -> shared array buffer
+
+  let postSimulation = () => {
+    switch (use_simulation_format) {
+      case 0: // json
+        self.postMessage({ on_simulation: true, simulation: wasm_solver.to_json() });
+        break;
+      case 1: // array buffer
+        self.postMessage({ on_simulation_array_buffer: true, simulation: wasm_solver.to_array_buffer() });
+        break;
+      case 2: // shared array buffer
+        self.postMessage({ on_simulation_shared_array_buffer: true, simulation: wasm_solver.to_shared_array_buffer() });
+        break;
+      default: // Default: array buffer
+        self.postMessage({ on_simulation_array_buffer: true, simulation: wasm_solver.to_array_buffer() });
+    }
+  };
 
   // (b) Handling function declaration
   let handle_make = (evt) => {
     initializing = true;
-    wasm = import("@/pkg");
-    wasm.then((w) => {
-      w.make_from_configuration(JSON.stringify(evt.data.make));
-      self.postMessage({ on_initialized: true, iteration: w.iteration(), time: w.time() });
-      self.postMessage({ on_simulation: true, simulation: w.get_simulation() });
+    if (evt.data.use_simulation_format.match(/^array_buffer$/i)) {
+      use_simulation_format = 1;
+    } else if (evt.data.use_simulation_format.match(/^json$/i)) {
+      use_simulation_format = 0;
+    } else if (evt.data.use_simulation_format.match(/^shared_array_buffer$/i)) {
+      use_simulation_format = 2;
+    } else {
+      use_simulation_format = 1;
+    }
+    import("@/pkg")
+    .then((w) => {
+      wasm = w;
+      wasm_solver = wasm.Solver.from_configuration(JSON.stringify(evt.data.make));
+      self.postMessage({ on_initialized: true, iteration: wasm_solver.iteration(), time: wasm_solver.time() });
+      postSimulation();
       initializing = false;
       initialized = true;
     });
@@ -33,14 +61,12 @@
     } else if (initialized) {
       starting = true;
       start_performance = performance.now();
-      wasm.then((w) => {
-        starting = false;
-        interval = setInterval(() => {
-          w.step(evt.data.start);
-          self.postMessage({ on_iterated: true, iteration: w.iteration(), time: w.time() });
-          self.postMessage({ on_simulation: true, simulation: w.get_simulation() });
-        }, 0);
-      });// .catch(console.error);
+      starting = false;
+      interval = setInterval(() => {
+        wasm_solver.step(evt.data.start);
+        self.postMessage({ on_initialized: true, iteration: wasm_solver.iteration(), time: wasm_solver.time() });
+        postSimulation();
+      }, 0);
     } else {
       throw "Start is called before the solver is initialized";
     }

@@ -4,7 +4,8 @@
 use std::error::Error;
 use std::collections::HashMap;
 
-use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{console, WebGl2RenderingContext, WebGlProgram, WebGlShader};
 
 use simple_error::SimpleError;
@@ -29,11 +30,19 @@ enum ViewerElementType {
     VortonRender,
 }
 
+/*
+ * Trait to manipulate a camera
+ */
+pub trait CameraManipulator {
+    fn apply(&mut self, camera: Camera) -> Camera;
+}
+
 pub struct Main 
 {
     context: WebGl2RenderingContext,
     viewer_elements: HashMap<Uuid, Box<dyn ViewerElement>>,
     camera: Option<Camera>,
+    camera_manipulator: Option<Box<dyn CameraManipulator>>,
 }
 
 impl Main
@@ -70,11 +79,28 @@ impl Main
                 Err(_) => return Err(Box::new(SimpleError::new(format!("Unable to cast webgl2 context appropriately from canvas {}", element_id).as_str()))),
             };
 
-        Ok(Main { 
+        let mut m = Main { 
                context,
                viewer_elements: HashMap::new(),
                camera: None,
-           })
+               camera_manipulator: None,
+        };
+        m.register_events(canvas)?;
+        Ok(m)
+    }
+
+    fn register_events(&mut self, canvas: web_sys::HtmlCanvasElement) -> Result<(), Box<dyn Error>> {
+        {
+            let closure = Closure::wrap(Box::new(|event: web_sys::MouseEvent| {
+                console::log_1(&JsValue::from_str(format!("onmousedown event - {:?}", event).as_str()));
+            }) as Box<dyn FnMut(_)>);
+            match canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref()) {
+                Ok(_) => (),
+                Err(e) => return Err(Box::new(SimpleError::new(format!("Error when adding mousedown event listener. Err: {:?}", e.as_string()).as_str()))),
+            };
+            closure.forget();
+        }
+        Ok(())
     }
 
     /*
