@@ -90,51 +90,56 @@ impl CameraBuilder {
     }
 
     fn touch_mid(touches: &HashMap<u32, Touch>) -> (f32, f32) {
-        if touches.len() > 0 {
-            let alpha: f32 = 1f32 / touches.len() as f32;
-            touches.iter()
-                .fold((0f32, 0f32), |r, (_, t)| (r.0 + alpha*t.x, r.1 + alpha*t.y))
+        let alpha: f32 = 1f32 / if (touches.len() > 0) { touches.len() as f32 } else { 1f32 };
+        touches.iter().fold((0f32, 0f32), |r, (_, t)| (r.0 + alpha*t.x, r.1 + alpha*t.y))
+    }
+
+    fn touch_delta(touches: &HashMap<u32, Touch>, mid: &(f32, f32)) -> f32 {
+        touches.iter()
+            .fold(0f32, |r, (_, t)| { r + ((t.x - mid.0).powi(2) + (t.y - mid.1).powi(2)).sqrt() })
+    }
+
+    fn alpha(a: &Touch, b: &Touch) -> f32 {
+        let l = ((b.x - a.x).powi(2) + (b.y - a.y).powi(2)).sqrt();
+        if l > 1e-5 {
+            if b.y > a.y {
+                1f32 * ((b.x - a.x)/l).acos()
+            } else {
+                -1f32 * ((b.x - a.x)/l).acos()
+            }
         } else {
-            (0f32, 0f32)
+            0f32
         }
     }
 
-    fn touch_delta(touches: &HashMap<u32, Touch>, mid: &(f32, f32)) -> (f32, f32) {
-        if touches.len() > 0 {
-            let (l, a) = touches.iter()
-                .fold((0f32, 0f32), 
-                     |r, (_, t)| {
-                         let l = ((t.x - mid.0).powi(2) + (t.y - mid.1).powi(2)).sqrt();
-                         let alpha  = if l > 1e-5 {
-                             if t.y > mid.1 {
-                                 1.0 * ((t.x - mid.0)/l).acos()
-                             } else {
-                                 ((t.x - mid.0)/l).acos() + std::f32::consts::PI
-                             }
-                         } else {
-                             0f32
-                         };
-
-                         (r.0 + l, r.1 + l*alpha)
-                     });
-            (l, if l > 1e-5 { a/l } else { 0f32 })
-        } else {
-            (0f32, 0f32)
+    fn touch_alpha(touches_from: &HashMap<u32, Touch>, touches_to: &HashMap<u32, Touch>) -> f32 {
+        let mut reference: Option<(&Touch, &Touch)> = None;
+        let mut alpha = 0f32; let mut count = 0;
+        for (k, v_from) in touches_from.iter() {
+            if let Some(v_to) = touches_to.get(k) {
+                if reference.is_none() { 
+                    reference = Some((v_from, v_to)); 
+                } else {
+                    count += 1;
+                    alpha += CameraBuilder::alpha(reference.unwrap().1, v_to) - CameraBuilder::alpha(reference.unwrap().0, v_from);
+                }
+            }
         }
+        alpha / if (count > 0) { count as f32 } else { 1f32 }
     }
 
     fn touch_modify(&mut self) -> Result<(), Box<dyn Error>> {
-        let (from_x, from_y) = CameraBuilder::touch_mid(&self.touches_down);
-        let (to_x, to_y)     = CameraBuilder::touch_mid(&self.touches);
+        let (fr_x, fr_y) = CameraBuilder::touch_mid(&self.touches_down);
+        let fr_l         = CameraBuilder::touch_delta(&self.touches_down, &(fr_x, fr_y));
 
-        let (from_l, from_alpha) = CameraBuilder::touch_delta(&self.touches_down, &(from_x, from_y));
-        let (to_l, to_alpha)     = CameraBuilder::touch_delta(&self.touches, &(to_x, to_y));
-        
+        let (to_x, to_y) = CameraBuilder::touch_mid(&self.touches);
+        let to_l         = CameraBuilder::touch_delta(&self.touches, &(to_x, to_y));
+        let alpha        = CameraBuilder::touch_alpha(&self.touches_down, &self.touches);
+
         self.modifier = 
-            self.zoom_matrix4(to_x, to_y, to_l - from_l)
-            * Matrix4::<f32>::from_euler_angles(0f32, 0f32, to_alpha - from_alpha)
-            * self.orbit_matrix4(from_x, from_y, to_x, to_y);
-
+            self.zoom_matrix4(to_x, to_y, to_l - fr_l)
+            * Matrix4::<f32>::from_euler_angles(0f32, 0f32, alpha)
+            * self.orbit_matrix4(fr_x, fr_y, to_x, to_y);
 
         Ok(())
     }
@@ -152,7 +157,7 @@ impl CameraBuilder {
             self.touch_apply().map_err(|e| JsValue::from_str(format!("{}", e).as_str()))?;
         }
 
-        let mut touches: Vec<Touch> = touches.into_serde().map_err(|e| JsValue::from_str(format!("{:?}",e).as_str()))?;
+        let touches: Vec<Touch> = touches.into_serde().map_err(|e| JsValue::from_str(format!("{:?}",e).as_str()))?;
         for touch in touches.iter() {
             self.touches_down.insert(touch.id, touch.clone());
             self.touches.insert(touch.id, touch.clone());
