@@ -138,7 +138,7 @@ impl CameraBuilder {
 
         self.modifier = 
             self.zoom_matrix4(to_x, to_y, to_l - fr_l)
-            * Matrix4::<f32>::from_euler_angles(0f32, 0f32, alpha)
+            * Matrix4::<f32>::from_euler_angles(0f32, 0f32, -alpha)
             * self.orbit_matrix4(fr_x, fr_y, to_x, to_y);
 
         Ok(())
