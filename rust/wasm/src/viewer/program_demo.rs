@@ -1,11 +1,11 @@
 use std::error::Error;
 use web_sys::{console, WebGlProgram, WebGl2RenderingContext};
 use simple_error::SimpleError;
+use nalgebra::Matrix4;
 
 use vortex_particle_simulation::{Simulation};
 
 use crate::viewer::{ViewerElement, webgl_link_program, webgl_compile_vertex_shader, webgl_compile_fragment_shader};
-use crate::viewer::camera::Camera;
 
 pub struct ProgramDemo
 {
@@ -50,7 +50,7 @@ impl ProgramDemo {
 }
 
 impl ViewerElement for ProgramDemo {
-    fn draw(&mut self, context: &WebGl2RenderingContext, camera: &Camera, simulation: &Simulation) -> Result<(), Box<dyn Error>> {
+    fn draw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>, simulation: &Simulation) -> Result<(), Box<dyn Error>> {
         // context.use_program(Some(&self.program));
 
         let position_attribute_location = context.get_attrib_location(&self.program, "position");
@@ -92,7 +92,7 @@ impl ViewerElement for ProgramDemo {
         self.redraw(context, camera)
     }
 
-    fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Camera) -> Result<(), Box<dyn Error>> {
+    fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>> {
         context.use_program(Some(&self.program));
         let vert_count = (self.vertices.len() / 3) as i32;
         context.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, vert_count);

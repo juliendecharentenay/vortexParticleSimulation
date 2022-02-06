@@ -94,5 +94,9 @@ impl Solver {
     pub fn get_simulation(&self) -> &Simulation {
         &self.simulation
     }
+
+    pub fn into_simulation(self) -> Simulation {
+        self.simulation
+    }
 }
 

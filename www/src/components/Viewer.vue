@@ -66,11 +66,15 @@ class SolverWebassembly {
     this.#worker.terminate();
   }
 
-  start(time_step) {
+  initialize() {
     if (!this.#initialized) {
       this.#worker.postMessage({ make: this.#configuration, use_simulation_format: this.use_simulation_format() });
       this.#initialized = true;
     }
+  }
+
+  start(time_step) {
+    this.initialize();
     this.#worker.postMessage({ start: time_step });
   }
 
@@ -106,11 +110,13 @@ export default {
       solver: null,
       wasm: null,
       viewer: null,
+      camera_builder: null,
       iteration: null,
       time: null,
       fps: null,
       processing: null,
       recording: false,
+      canvas_evt: null,
     };
   },
 
@@ -122,18 +128,22 @@ export default {
 
   mounted: function () {
     this.$store.dispatch("solver/initialize");
+    this.set_canvas_size();
+    window.onresize = () => {this.set_canvas_size();};
 
     import("@/pkg")
     .then((w) => { 
        this.wasm = w;
+       this.camera_builder = this.wasm.CameraBuilder.new(this.get_canvas().width, this.get_canvas().height);
        this.viewer = this.wasm.Viewer.new(this.canvas_id);
        this.viewer.create(JSON.stringify({type: "VortonRender"}));
        // this.viewer.create(JSON.stringify({type: "Demo"}));
     })
     .catch(console.error);
 
-    this.set_canvas_size();
-    window.onresize = () => {this.set_canvas_size();};
+    this.register_canvas_actions();
+    this.get_solver().initialize();
+    this.render();
   },
 
   beforeDestroy: function() {
@@ -141,6 +151,97 @@ export default {
   },
 
   methods: {
+    register_canvas_actions: function() {
+      // mouse events
+      this.get_canvas().addEventListener("mousedown", (evt) => {
+        if (this.camera_builder !== null) {this.camera_builder.on_mouse_down(evt.clientX, evt.clientY);}
+      });
+      this.get_canvas().addEventListener("mousemove", (evt) => {
+        if (this.camera_builder !== null) {this.camera_builder.on_mouse_move(evt.clientX, evt.clientY);}
+      });
+      this.get_canvas().addEventListener("mouseup", (evt) => {
+        if (this.camera_builder !== null) {this.camera_builder.on_mouse_up(evt.clientX, evt.clientY);}
+      });
+
+      // wheel events
+      this.get_canvas().onwheel = (evt) => {
+        evt.preventDefault();
+        if (this.camera_builder !== null) {this.camera_builder.on_wheel(evt.clientX, evt.clientY, evt.deltaY);}
+      };
+
+      // Touch events
+      this.get_canvas().addEventListener("touchstart", (evt) => {
+        evt.preventDefault();
+        if (this.camera_builder !== null) { this.camera_builder.on_touch_start(this.as_touch_array(evt)); }
+      });
+      this.get_canvas().addEventListener("touchend", (evt) => {
+        evt.preventDefault();
+        if (this.camera_builder !== null) { this.camera_builder.on_touch_end(this.as_touch_array(evt)); }
+      });
+      this.get_canvas().addEventListener("touchcancel", (evt) => {
+        evt.preventDefault();
+        if (this.camera_builder !== null) { this.camera_builder.on_touch_cancel(this.as_touch_array(evt)); }
+      });
+      this.get_canvas().addEventListener("touchmove", (evt) => {
+        evt.preventDefault();
+        if (this.camera_builder !== null) { this.camera_builder.on_touch_move(this.as_touch_array(evt)); }
+      });
+    },
+
+    as_touch_array: function(evt) {
+      var touches = [];
+      for (var i = 0; i < evt.changedTouches.length; i++) {
+        var t = evt.changedTouches[i];
+        touches.push({
+          id: t.identifier,
+          x:  t.clientX,
+          y:  t.clientY
+        });
+      }
+      return touches;
+    },
+
+    onWheel: function(evt) {
+      // console.log("onWheel", evt);
+      if (this.camera_builder !== null) {
+        var c = this.get_canvas();
+        var w = c.width;
+        var h = c.height;
+        console.log(w, h, evt.clientX, evt.clientY);
+        this.camera_builder.apply_translate(0.5*w, 0.5*h, evt.clientX, evt.clientY, evt.deltaY / h * 1.0);
+      }
+    },
+
+    onMouseDown: function(evt) {
+      console.log("mousedown", evt);
+      this.canvas_evt = evt;
+    },
+
+    onMouseMove: function(evt) {
+      if (this.camera_builder !== null) {
+        if (this.canvas_evt !== null && this.canvas_evt.type === "mousedown") {
+          this.camera_builder.orbit(this.canvas_evt.clientX, 
+                 this.canvas_evt.clientY,
+                 evt.clientX,
+                 evt.clientY);
+        }
+      }
+    },
+
+    onMouseUp: function(evt) {
+      console.log("mouseup", evt);
+      if (this.camera_builder !== null) {
+        if (this.canvas_evt !== null && this.canvas_evt.type === "mousedown") {
+          this.camera_builder.orbit(this.canvas_evt.clientX, 
+                 this.canvas_evt.clientY,
+                 evt.clientX,
+                 evt.clientY);
+          this.camera_builder.apply_orbit();
+        }
+      }
+      this.canvas_evt = null
+    },
+
     mediarecorder_on_processing: function(evt) {
       if (evt) { 
         this.processing = {'message': 'Processing video recording'}; 
@@ -148,6 +249,7 @@ export default {
         this.processing = null; 
       }
     },
+
     set_canvas_size: function() {
       var p = document.getElementById(this.viewer_id);
       var c = this.get_canvas();
@@ -157,6 +259,14 @@ export default {
 
     get_canvas: function () {
       return document.getElementById(this.canvas_id);
+    },
+
+    render: function() {
+      if (this.viewer !== null) {
+        this.viewer.draw(this.camera_builder);
+        if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+      }
+      window.requestAnimationFrame(() => {this.render();});
     },
 
 /*
@@ -207,29 +317,20 @@ export default {
         } else if (evt.data.on_simulation) {
           if (this.wasm !== null && this.viewer !== null) { 
             let s = this.wasm.Solver.from_json(evt.data.simulation);
-            this.viewer.draw(s);
-            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+            this.viewer.set_simulation(s);
           }
 
         } else if (evt.data.on_simulation_array_buffer) {
           if (this.wasm !== null && this.viewer !== null) { 
             let s = this.wasm.Solver.from_array_buffer(evt.data.simulation);
-            this.viewer.draw(s);
-            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+            this.viewer.set_simulation(s);
           }
 
 
         } else if (evt.data.on_simulation_shared_array_buffer) {
           if (this.wasm !== null && this.viewer !== null) { 
             let s = this.wasm.Solver.from_shared_array_buffer(evt.data.simulation);
-            this.viewer.draw(s);
-            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
-          }
-
-        } else if (evt.data.on_simulation_solver) {
-          if (this.wasm !== null && this.viewer !== null) { 
-            this.viewer.draw(evt.data.simulation);
-            if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
+            this.viewer.set_simulation(s);
           }
 
         } else {
