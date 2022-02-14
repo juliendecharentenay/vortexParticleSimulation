@@ -1,11 +1,14 @@
 /*
  * Main class
  */
-use std::error::Error;
+use std::{
+    error::Error,
+    convert::TryInto,
+};
 use std::collections::HashMap;
 
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{console, WebGl2RenderingContext, WebGlProgram, WebGlShader};
+use web_sys::{console, HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader};
 
 use simple_error::SimpleError;
 // use nanoid::nanoid;
@@ -30,14 +33,34 @@ enum ViewerElementType {
 
 pub struct Main 
 {
-    context: WebGl2RenderingContext,
+    canvas: HtmlCanvasElement,
+    // context: WebGl2RenderingContext,
     viewer_elements: HashMap<Uuid, Box<dyn ViewerElement>>,
 }
 
 impl Main
 {
+    pub fn context(&self) -> Result<WebGl2RenderingContext, Box<dyn Error>> {
+        let canvas = &self.canvas;
+        let context 
+            = match canvas.get_context("webgl2")
+            {
+                Ok(c) => c,
+                Err(_) => return Err(Box::new(SimpleError::new(format!("Unable to retrieve webgl2 context from canvas").as_str()))),
+            };
+        let context 
+            = match context.unwrap().dyn_into::<WebGl2RenderingContext>()
+            {
+                Ok(c) => c,
+                Err(_) => return Err(Box::new(SimpleError::new(format!("Unable to cast webgl2 context appropriately from canvas").as_str()))),
+            };
+        Ok(context)
+    }
+
+    /*
     pub fn get_context(& self) -> &WebGl2RenderingContext { &self.context }
     pub fn get_context_mut(&mut self) -> &mut WebGl2RenderingContext { &mut self.context }
+    */
 }
 
 impl Main
@@ -54,24 +77,15 @@ impl Main
                 Ok(c) => c,
                 Err(_) => return Err(Box::new(SimpleError::new(format!("Unable to cast HTML element {} into canvas element", element_id).as_str()))),
             };
-
-        let context 
-            = match canvas.get_context("webgl2")
-            {
-                Ok(c) => c,
-                Err(_) => return Err(Box::new(SimpleError::new(format!("Unable to retrieve webgl2 context from canvas {}", element_id).as_str()))),
-            };
-        let context 
-            = match context.unwrap().dyn_into::<WebGl2RenderingContext>()
-            {
-                Ok(c) => c,
-                Err(_) => return Err(Box::new(SimpleError::new(format!("Unable to cast webgl2 context appropriately from canvas {}", element_id).as_str()))),
-            };
-
         Ok(Main { 
-               context,
+               canvas,
                viewer_elements: HashMap::new(),
         })
+    }
+
+    pub fn reset(&mut self) -> Result<(), Box<dyn Error>> {
+        for e in self.viewer_elements.values_mut() { e.reset()?; }
+        Ok(())
     }
 
     /*
@@ -79,11 +93,13 @@ impl Main
      */
     pub fn draw(&mut self, simulation: &Simulation, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>> {
         // Initialise background
-        self.context.clear_color(6f32/255f32, 78f32/255f32, 59f32/255f32, 1f32);
-        self.context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+        let mut context = self.context()?;
+        context.viewport(0, 0, self.canvas.width().try_into()?, self.canvas.height().try_into()?);
+        context.clear_color(6f32/255f32, 78f32/255f32, 59f32/255f32, 1f32);
+        context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
         for e in self.viewer_elements.values_mut() {
-            e.draw(&self.context, &camera, &simulation)?;
+            e.draw(&context, &camera, &simulation)?;
         }
 
         Ok(())
@@ -108,8 +124,8 @@ impl Main
         match serde_json::from_str(content) {
             Ok(t) => {
                 let id = match t {
-                    ViewerElementType::Demo => self.insert_viewer_element(ProgramDemo::new(&self.context)?),
-                    ViewerElementType::VortonRender => self.insert_viewer_element(ProgramVortonRender::new(&self.context)?),
+                    ViewerElementType::Demo => self.insert_viewer_element(ProgramDemo::new(&self.context()?)?),
+                    ViewerElementType::VortonRender => self.insert_viewer_element(ProgramVortonRender::new(&self.context()?)?),
                 };
                 Ok(id)
             },

@@ -10,13 +10,21 @@ use crate::viewer::{ViewerElement, webgl_link_program, webgl_compile_vertex_shad
 pub struct ProgramDemo
 {
     // context: &'a WebGl2RenderingContext,
-    program: WebGlProgram,
+    program: Option<WebGlProgram>,
     vertices: [f32; 9],
 }
 
 impl ProgramDemo {
     pub fn new(context: & WebGl2RenderingContext) -> Result<ProgramDemo, Box<dyn Error>> {
-        let vert_shader = webgl_compile_vertex_shader(
+        Ok(ProgramDemo {
+            program: None,
+            vertices: [-0.7, -0.7, 0.0, 0.7, -0.7, 0.0, 0.0, 0.7, 0.0],
+        })
+    }
+
+    fn program(&mut self, context: &WebGl2RenderingContext) -> Result<&WebGlProgram, Box<dyn Error>> {
+        if self.program.is_none() {
+          let vert_shader = webgl_compile_vertex_shader(
             context,
             r##"#version 300 es
 
@@ -25,9 +33,9 @@ impl ProgramDemo {
               gl_Position = position;
             }
             "##,
-        )?;
+          )?;
 
-        let frag_shader = webgl_compile_fragment_shader(
+          let frag_shader = webgl_compile_fragment_shader(
             context,
             r##"#version 300 es
 
@@ -37,23 +45,27 @@ impl ProgramDemo {
               outColor = vec4(0.9, 0.9, 0.9, 1);
             }
             "##,
-        )?;
+          )?;
 
-        let program = webgl_link_program(&context, &vert_shader, &frag_shader)?;
-
-        Ok(ProgramDemo {
-            program,
-            vertices: [-0.7, -0.7, 0.0, 0.7, -0.7, 0.0, 0.0, 0.7, 0.0],
-        })
+          self.program = Some(webgl_link_program(&context, &vert_shader, &frag_shader)?);
+        }
+        self.program
+            .as_ref()
+            .ok_or(Box::new(SimpleError::new("Unable to create program")))
     }
 
 }
 
 impl ViewerElement for ProgramDemo {
+    fn reset(&mut self) -> Result<(), Box<dyn Error>> {
+        self.program = None;
+        Ok(())
+    }
+
     fn draw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>, simulation: &Simulation) -> Result<(), Box<dyn Error>> {
         // context.use_program(Some(&self.program));
 
-        let position_attribute_location = context.get_attrib_location(&self.program, "position");
+        let position_attribute_location = context.get_attrib_location(self.program(context)?, "position");
         let buffer = match context.create_buffer() {
             Some(b) => b,
             None => return Err(Box::new(SimpleError::new("Failed to create buffer"))),
@@ -93,7 +105,7 @@ impl ViewerElement for ProgramDemo {
     }
 
     fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>> {
-        context.use_program(Some(&self.program));
+        context.use_program(Some(self.program(context)?));
         let vert_count = (self.vertices.len() / 3) as i32;
         context.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, vert_count);
         Ok(())

@@ -14,18 +14,20 @@
   let use_simulation_format = 1; // 0 -> json, 1 -> array buffer (default), 2 -> shared array buffer
 
   let postSimulation = () => {
-    switch (use_simulation_format) {
-      case 0: // json
-        self.postMessage({ on_simulation: true, simulation: wasm_solver.to_json() });
-        break;
-      case 1: // array buffer
-        self.postMessage({ on_simulation_array_buffer: true, simulation: wasm_solver.to_array_buffer() });
-        break;
-      case 2: // shared array buffer
-        self.postMessage({ on_simulation_shared_array_buffer: true, simulation: wasm_solver.to_shared_array_buffer() });
-        break;
-      default: // Default: array buffer
-        self.postMessage({ on_simulation_array_buffer: true, simulation: wasm_solver.to_array_buffer() });
+    if (wasm_solver !== null) {
+      switch (use_simulation_format) {
+        case 0: // json
+          self.postMessage({ on_simulation: true, simulation: wasm_solver.to_json() });
+          break;
+        case 1: // array buffer
+          self.postMessage({ on_simulation_array_buffer: true, simulation: wasm_solver.to_array_buffer() });
+          break;
+        case 2: // shared array buffer
+          self.postMessage({ on_simulation_shared_array_buffer: true, simulation: wasm_solver.to_shared_array_buffer() });
+          break;
+        default: // Default: array buffer
+          self.postMessage({ on_simulation_array_buffer: true, simulation: wasm_solver.to_array_buffer() });
+      }
     }
   };
 
@@ -90,6 +92,10 @@
     }
   };
 
+  let handle_get = () => {
+    postSimulation();
+  };
+
   // (c) Message handling
   self.onmessage = (evt) => {
     if (evt.data instanceof Object) {
@@ -100,6 +106,8 @@
         handle_start(evt);
       } else if (evt.data.stop) {
         handle_stop(evt);
+      } else if (evt.data.get) {
+	handle_get(evt);
       } else {
         throw "Event is not recognised " + JSON.stringify(evt.data);
       }

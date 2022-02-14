@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{WebGl2RenderingContext};
+use web_sys::{WebGl2RenderingContext, console};
 use nalgebra::Matrix4;
 
 use vortex_particle_simulation::{Simulation};
@@ -18,6 +18,7 @@ mod program_demo;
 mod program_vorton_render;
 
 pub trait ViewerElement {
+    fn reset(&mut self) -> Result<(), Box<dyn Error>>;
     fn draw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>, simulation: &Simulation) -> Result<(), Box<dyn Error>>;
     fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>>;
 }
@@ -37,6 +38,11 @@ impl Viewer {
                 format!("Unable to create viewer. Error: {:?}", e).as_str()
                 )),
         }
+    }
+
+    pub fn reset(&mut self) -> Result<(), JsValue> {
+        self.viewer.reset()
+            .map_err(|e| JsValue::from_str(e.to_string().as_str()))
     }
 
     pub fn draw(&mut self, camera_builder: &CameraBuilder) -> Result<(), JsValue> {

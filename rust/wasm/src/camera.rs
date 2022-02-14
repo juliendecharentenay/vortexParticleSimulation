@@ -69,6 +69,18 @@ impl CameraBuilder {
         } )
     }
 
+    pub fn set(&mut self, width: f32, height: f32) -> Result<(), JsValue> {
+        console::log_1(&JsValue::from_str(format!("Calling set {}/{}...", width, height).as_str()));
+        self.width = width;
+        self.height = height;
+        self.view = self.modifier * self.view;
+        self.modifier = Matrix4::<f32>::identity();
+        self.mouse_down = None;
+        self.touches = HashMap::new();
+        self.touches_down = HashMap::new();
+        Ok(())
+    }
+
     pub fn on_mouse_down(&mut self, x: f32, y: f32) -> Result<(), JsValue> {
         self.handle_user_event(UserEvent::MouseDown { x, y })
             .map_err(|e| JsValue::from_str(format!("Error in on_mouse_down: {}", e).as_str()) )

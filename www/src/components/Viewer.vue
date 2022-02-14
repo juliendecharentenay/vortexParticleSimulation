@@ -73,6 +73,11 @@ class SolverWebassembly {
     }
   }
 
+  get() {
+    this.initialize();
+    this.#worker.postMessage({ get: true });
+  }
+
   start(time_step) {
     this.initialize();
     this.#worker.postMessage({ start: time_step });
@@ -134,10 +139,7 @@ export default {
     import("@/pkg")
     .then((w) => { 
        this.wasm = w;
-       this.camera_builder = this.wasm.CameraBuilder.new(this.get_canvas().width, this.get_canvas().height);
-       this.viewer = this.wasm.Viewer.new(this.canvas_id);
-       this.viewer.create(JSON.stringify({type: "VortonRender"}));
-       // this.viewer.create(JSON.stringify({type: "Demo"}));
+       this.init_viewer();
     })
     .catch(console.error);
 
@@ -151,6 +153,16 @@ export default {
   },
 
   methods: {
+    init_viewer: function() {
+      if (this.wasm !== null) {
+         this.camera_builder = this.wasm.CameraBuilder.new(this.get_canvas().width, this.get_canvas().height);
+         this.viewer = this.wasm.Viewer.new(this.canvas_id);
+         this.viewer.create(JSON.stringify({type: "VortonRender"}));
+         // this.viewer.create(JSON.stringify({type: "Demo"}));
+         this.get_solver().get();
+      }
+    },
+
     register_canvas_actions: function() {
       // mouse events
       this.get_canvas().addEventListener("mousedown", (evt) => {
@@ -255,6 +267,7 @@ export default {
       var c = this.get_canvas();
       c.width = p.clientWidth;
       c.height = p.clientHeight;
+      this.init_viewer();
     },
 
     get_canvas: function () {
@@ -262,7 +275,7 @@ export default {
     },
 
     render: function() {
-      if (this.viewer !== null) {
+      if ((this.viewer !== null) && (this.camera_builder !== null)) {
         this.viewer.draw(this.camera_builder);
         if (this.recording) { this.$refs.media_recorder.capture(this.get_canvas()); }
       }
@@ -325,7 +338,6 @@ export default {
             let s = this.wasm.Solver.from_array_buffer(evt.data.simulation);
             this.viewer.set_simulation(s);
           }
-
 
         } else if (evt.data.on_simulation_shared_array_buffer) {
           if (this.wasm !== null && this.viewer !== null) { 

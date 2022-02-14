@@ -10,16 +10,25 @@ use nalgebra::Matrix4;
 
 pub struct ProgramVortonRender
 {
-    program: WebGlProgram,
+    program: Option<WebGlProgram>,
     vertices: Vec<f32>,
     n_vertices: usize,
 }
 
 impl ProgramVortonRender {
     pub fn new(context: &WebGl2RenderingContext) -> Result<ProgramVortonRender, Box<dyn Error>> {
-        let vert_shader = webgl_compile_vertex_shader(
-            context,
-            r##"
+        Ok(ProgramVortonRender {
+            program: None,
+            vertices: Vec::new(),
+            n_vertices: 0,
+        })
+    }
+
+    fn program(&mut self, context: &WebGl2RenderingContext) -> Result<&WebGlProgram, Box<dyn Error>> {
+        if self.program.is_none() {
+          let vert_shader = webgl_compile_vertex_shader(
+              context,
+              r##"
      attribute vec4 vPosition;
      uniform mat4 uMatrix;
      void main()
@@ -31,8 +40,8 @@ impl ProgramVortonRender {
             )?;
 
 
-        let frag_shader = webgl_compile_fragment_shader(
-            context,
+          let frag_shader = webgl_compile_fragment_shader(
+              context,
             r##"
      precision mediump float;
      void main()
@@ -41,17 +50,20 @@ impl ProgramVortonRender {
      }
             "##,
             )?;
-        let program = webgl_link_program(&context, &vert_shader, &frag_shader)?;
-
-        Ok(ProgramVortonRender {
-            program,
-            vertices: Vec::new(),
-            n_vertices: 0,
-        })
+          self.program = Some(webgl_link_program(&context, &vert_shader, &frag_shader)?);
+        }
+        self.program
+            .as_ref()
+            .ok_or(Box::new(SimpleError::new("Unable to retrieve program")))
     }
 }
 
 impl ViewerElement for ProgramVortonRender {
+    fn reset(&mut self) -> Result<(), Box<dyn Error>> {
+        self.program = None;
+        Ok(())
+    }
+
     /*
      * Draw the simulation to webgl
      */
@@ -104,7 +116,7 @@ impl ViewerElement for ProgramVortonRender {
         context.bind_vertex_array(Some(&vao));
 
         context.vertex_attrib_pointer_with_i32(0, 3, WebGl2RenderingContext::FLOAT, false, 0, 0);
-        let v_position_location = context.get_attrib_location(&self.program, "vPosition");
+        let v_position_location = context.get_attrib_location(self.program(context)?, "vPosition");
         context.enable_vertex_attrib_array(v_position_location as u32);
 
         context.bind_vertex_array(Some(&vao));
@@ -113,9 +125,9 @@ impl ViewerElement for ProgramVortonRender {
     }
 
     fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>> {
-        context.use_program(Some(&self.program));
+        context.use_program(Some(self.program(context)?));
 
-        let u_matrix_location = context.get_uniform_location(&self.program, "uMatrix");
+        let u_matrix_location = context.get_uniform_location(self.program(context)?, "uMatrix");
         context.uniform_matrix4fv_with_f32_array(
             u_matrix_location.as_ref(),
             false,
