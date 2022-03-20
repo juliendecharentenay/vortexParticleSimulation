@@ -5,7 +5,9 @@ use simple_error::SimpleError;
 
 use vortex_particle_simulation::{Simulation};
 
-use crate::viewer::{ViewerElement, webgl_link_program, webgl_compile_vertex_shader, webgl_compile_fragment_shader};
+use super::{View};
+use super::{webgl_link_program, webgl_compile_vertex_shader, webgl_compile_fragment_shader};
+
 use nalgebra::Matrix4;
 
 pub struct ProgramVortonRender
@@ -16,7 +18,7 @@ pub struct ProgramVortonRender
 }
 
 impl ProgramVortonRender {
-    pub fn new(context: &WebGl2RenderingContext) -> Result<ProgramVortonRender, Box<dyn Error>> {
+    pub fn new() -> Result<ProgramVortonRender, Box<dyn Error>> {
         Ok(ProgramVortonRender {
             program: None,
             vertices: Vec::new(),
@@ -58,7 +60,7 @@ impl ProgramVortonRender {
     }
 }
 
-impl ViewerElement for ProgramVortonRender {
+impl View for ProgramVortonRender {
     fn reset(&mut self) -> Result<(), Box<dyn Error>> {
         self.program = None;
         Ok(())

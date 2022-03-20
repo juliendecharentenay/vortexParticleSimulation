@@ -43,6 +43,23 @@ impl Configuration {
         Ok(serde_json::from_reader(r)?)
     }
     */
+    pub fn new_vortex_ring() -> Configuration {
+        Configuration {
+            n_vortons: 1000,
+            initial_conditions: InitialConditionData::InitialConditionVortexRing(
+                VortexRing {
+                    center: Point3::<f64>::new(0.0, 0.0, 0.0),
+                    direction: Vector3::<f64>::new(1.0, 0.0, 0.0),
+                    intensity: 1.0,
+                    radius: 1.0,
+                    thickness: 0.5,
+                }
+                ),
+            domain: Domain { min: Point3::<f64>::new(0.0, 0.0, 0.0), max: Point3::<f64>::new(1.0, 1.0, 1.0) },
+            viscosity: 1e-5
+        }
+    }
+
     pub fn new() -> Configuration {
         Configuration {
             n_vortons: 0,
@@ -54,6 +71,10 @@ impl Configuration {
 
     pub fn make_from(content: &[u8]) -> Result<Configuration, Box<dyn Error>> {
         Ok(serde_json::from_slice(content)?)
+    }
+
+    pub fn from_str(content: &str) -> Result<Configuration, Box<dyn Error>> {
+        Ok(serde_json::from_str(content)?)
     }
 
     pub fn get_initial_conditions(&self) -> Box<& dyn InitialConditions> {

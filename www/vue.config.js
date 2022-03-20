@@ -1,20 +1,13 @@
 const path = require("path");
-const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
-const webpack = require("webpack");
+const { defineConfig } = require('@vue/cli-service')
+const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
+const webpack = require('webpack');
 
-module.exports = {
-  publicPath: '/vpm/',
-  productionSourceMap: false,
-  pages: {
-    index: "src/pages/index/main.js",
-  },
-  configureWebpack: {        
-    devServer: {
-      headers: {
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "Cross-Origin-Opener-Policy": "same-origin",
-      },
-      // mimeTypes: { 'application/wasm': ['wasm'] },
+module.exports = defineConfig({
+  transpileDependencies: true,
+  configureWebpack: {
+    experiments: {
+      asyncWebAssembly: true,
     },
   },
   chainWebpack: (config) => {
@@ -29,8 +22,6 @@ module.exports = {
             outDir: path.resolve(__dirname, "./src/pkg"),
             // forceMode: "development",
             forceMode: "production",
-	    // extraArgs: '--target web'
-	    // extraArgs: '--target no-modules'
           })
       )
       .end()
@@ -47,17 +38,11 @@ module.exports = {
       .end();
     config.module.rule("js").exclude.add(/\.worker\.js$/);
     config.module
-      .rule("worker")
-      .test(/\.worker\.js$/)
-      .use("worker-loader")
-      .loader("worker-loader")
-      .end();
+    .rule("worker")
+    .test(/\.worker\.js$/)
+    .use("worker-loader")
+    .loader("worker-loader")
+    .end();
+  }, 
+})
 
-    config.module
-      .rule("loader-import-meta")
-      .test(/index.js$/)
-      .use('@open-wc/webpack-import-meta-loader')
-      .loader('@open-wc/webpack-import-meta-loader')
-      .end();
-  },
-};

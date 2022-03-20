@@ -54,7 +54,7 @@ impl Simulation {
         println!("Domain max (X/Y/Z): {}, {}, {}", configuration.domain.max.x, configuration.domain.max.y, configuration.domain.max.z);
         println!("Number of vortons: {}", vortons.len());
         Ok(Simulation{
-            configuration, 
+            configuration,
             time: 0.0, iteration: 0, vortons,
             free_stream_velocity})
     }

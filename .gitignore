@@ -16,6 +16,10 @@ Cargo.lock
 
 *.ignore
 
+
 # Simulation and CSV output files
 *.sim
 *.csv
+
+package-lock.json
+coverage

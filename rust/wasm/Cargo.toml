@@ -1,8 +1,8 @@
 [package]
-name = "wasm"
+name = "wasm-v2"
 version = "0.1.0"
 authors = ["Julien de Charentenay <julien@charentenay.me>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,24 +30,18 @@ features = [
   'Document',
   'Element',
   'HtmlCanvasElement',
+  'Performance',
   'MouseEvent',
+  'Touch',
+  'TouchList',
+  'TouchEvent',
   'WebGlBuffer',
   'WebGlVertexArrayObject',
   'WebGl2RenderingContext',
   'WebGlProgram',
   'WebGlShader',
   'WebGlUniformLocation',
+  'WheelEvent',
   'Window',
-  'Performance',
 ]
 
-#[target.wasm32.unknown.unknown]
-#rustflags = [
-    ## Enabled unstable APIs from web_sys
-    #"--cfg=web_sys_unstable_apis",
-    ## Enables features which are required for shared-memory
-    #"-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",
-    ## Enables the possibility to import memory into wasm.
-    ## Without --shared-memory it is not possible to use shared WebAssembly.Memory.
-    #"-C", "link-args=--shared-memory --import-memory",
-#]
