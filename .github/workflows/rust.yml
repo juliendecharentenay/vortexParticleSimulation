@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run: cd rust; cargo build --verbose
-    - name: Run tests
-      run: cd rust; cargo test --verbose
+    - name: Build and test rust
+      run: cd rust; cargo build --verbose; cargo test --verbose
+    - name: Build and test www
+      run: cd www; npm install; npm run test:unit
