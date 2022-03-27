@@ -4,6 +4,7 @@ const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
 const webpack = require('webpack');
 
 module.exports = defineConfig({
+  publicPath: '/vpm',
   transpileDependencies: true,
   configureWebpack: {
     experiments: {
