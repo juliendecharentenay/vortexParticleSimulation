@@ -4,12 +4,14 @@ export class Solver {
   wasm;
   simulation;
   interval;
+  initialize;
 
   constructor(worker) {
     this.worker = worker;
     this.simulation = null;
     this.interval = null;
     this.wasm = null;
+    this.initialize_on_the_fly = false;
     import("@/pkg")
     .then((w) => {
       this.wasm = w;
@@ -25,13 +27,13 @@ export class Solver {
       this.simulation = this.wasm.Simulation.default();
     }
     this.simulation.set_parameters(parameters);
-  }
-
-  initialize() {
-    if (this.simulation === null) {
-      throw new Error("Solver::initialize - Simulation does not exist yet.");
+    if (this.interval === null) {
+      this.initialize_on_the_fly = false;
+      this.simulation.initialize_solution();
+      this.send_solution();
+    } else {
+      this.initialize_on_the_fly = true;
     }
-    this.simulation.initialize_solution();
   }
 
   send_solution() {
@@ -50,6 +52,10 @@ export class Solver {
     }
     var time_step = 1.0/30.0;
     this.interval = setInterval(() => {
+      if (this.initialize_on_the_fly) {
+        this.simulation.initialize_solution();
+        this.initialize_on_the_fly = false;
+      }
       this.simulation.step(time_step);
       this.worker.postMessage({ on_step: true, iteration: this.simulation.iteration(), time: this.simulation.time() });
       this.send_solution();

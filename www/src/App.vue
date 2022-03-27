@@ -38,6 +38,7 @@
                   class="h-10 w-10" v-else />
 
       </div>
+      <AdjustmentsIcon @click="openSimulationParameters" class="h-10 w-10" />
     </div>
 
     <div v-if="control_style === 'rc-heli' || control_style === 'rc-plane'">
@@ -68,14 +69,6 @@
       </JoyConAnimation>
     </div>
 
-    <div v-if="loading !== null && error === null"
-         class="absolute bg-black/70 inset-0">
-      <LoadingAlert
-        :message="loading"
-        @on_error="on_error($event.message, $event.error)"
-        class="max-w-4xl p-4 mx-auto top-1/3 " />
-    </div>
-
     <div v-if="error !== null"
          class="absolute bg-black/70 inset-0">
       <ErrorAlert
@@ -83,6 +76,22 @@
         :error="error"
         @on_close="clear_error()"
         class="max-w-4xl p-4 mx-auto top-1/3 " />
+    </div>
+    <div v-else-if="loading !== null"
+         class="absolute bg-black/70 inset-0">
+      <LoadingAlert
+        :message="loading"
+        @on_error="on_error($event.message, $event.error)"
+        class="max-w-4xl p-4 mx-auto top-1/3 " />
+    </div>
+    <div v-else-if="simulation_parameters !== null"
+         class="absolute bg-black/70 inset-0">
+      <SimulationParametersAdjust
+        v-model="simulation_parameters"
+        @on_error="on_error($event.message, $event.error)"
+        @on_update="updateSimulationParameters"
+        @on_cancel="closeSimulationParameters"
+        class="absolute inset-4 max-w-4xl mx-auto" />
     </div>
 
   </div>
@@ -103,6 +112,7 @@ import LoadingAlert from '@/components/LoadingAlert';
 import ViewerRender from '@/components/ViewerRender';
 import ToggleWithLabelRight from '@/components/ToggleWithLabelRight';
 import ControlStyleSelect from '@/components/ControlStyleSelect';
+import SimulationParametersAdjust from '@/components/SimulationParametersAdjust';
 
 import MediaRecorder from "@/shared/components/MediaRecorder";
 
@@ -111,7 +121,7 @@ import PlayIcon from "@/components/PlayIcon";
 import StopIcon from "@/components/StopIcon";
 import RecordStopIcon from "@/components/RecordStopIcon";
 
-import { ArrowsExpandIcon } from "@heroicons/vue/outline";
+import { ArrowsExpandIcon, AdjustmentsIcon } from "@heroicons/vue/outline";
 
 export default {
   name: 'App',
@@ -123,11 +133,12 @@ export default {
       error: null,
       error_message: null,
       simulation: null,
+      simulation_parameters: null,
       worker: null,
       message: null,
       record: false,
       simulating: false,
-      c_control_style: "rc-heli", // "classic"
+      c_control_style: "classic",
       controller_right: false,
       controller_left: false,
       controller_signal: {
@@ -159,7 +170,9 @@ export default {
     StopIcon,
     ControlStyleSelect,
     ArrowsExpandIcon,
+    AdjustmentsIcon,
     MediaRecorder,
+    SimulationParametersAdjust,
   },
 
   mounted: function() {
@@ -210,6 +223,41 @@ export default {
   },
 
   methods: {
+    openSimulationParameters: function() {
+      try {
+        if (this.simulation !== null) {
+          this.simulation_parameters = JSON.parse(this.simulation.get_parameters());
+        } else {
+          throw new Error("Simulation is not available in updateSimulationParameters");
+        }
+      } catch (e) {
+        this.on_error("Error in App::openSimulationParameters", e);
+      }
+    },
+
+    updateSimulationParameters: function() {
+      try {
+        if (this.simulation !== null) {
+          this.simulation.set_parameters(JSON.stringify(this.simulation_parameters));
+          this.make();
+          this.log("");
+          this.simulation_parameters = null;
+        } else {
+          throw new Error("Simulation is not available in updateSimulationParameters");
+        }
+      } catch (e) {
+        this.on_error("Error in App::updateSimulationParameters", e);
+      }
+    },
+
+    closeSimulationParameters: function() {
+      try {
+        this.simulation_parameters = null;
+      } catch (e) {
+        this.on_error("Error in App::closeSimulationParameters", e);
+      }
+    },
+
     toggle_full_screen: function() {
       try {
         if (! this.full_screen) {
@@ -235,9 +283,9 @@ export default {
         this.on_error("Error in App::toggle_full_screen", e);
       }
     },
+
     log: function(msg) {
       this.message = msg;
-      console.log(`log: ${msg}`);
     },
 
     on_controller_left_active: function(evt) {
@@ -282,6 +330,20 @@ export default {
       }
     },
 
+    make: function() {
+      try {
+        if (this.worker !== null) {
+          if (this.simulation !== null) {
+            this.worker.postMessage({make: this.simulation.get_parameters()});
+          } else {
+            throw "Simulation is not initialized when worker is initialized";
+          }
+        }
+      } catch(e) {
+        this.on_error("Error in App::make", e);
+      }
+    },
+
     start: function() {
       try {
         if (this.worker !== null) {
@@ -290,7 +352,7 @@ export default {
           if (this.record) { this.$refs.media_recorder.record(this.$refs.viewerrender.get_canvas().captureStream(30)); }
         }
       } catch(e) {
-        this.on_error("Error in App::init_wasm", e);
+        this.on_error("Error in App::start", e);
       }
     },
 
@@ -302,7 +364,7 @@ export default {
           this.worker.postMessage({stop: true});
         }
       } catch(e) {
-        this.on_error("Error in App::init_wasm", e);
+        this.on_error("Error in App::stop", e);
       }
     },
 
@@ -314,8 +376,8 @@ export default {
           this.simulation = wasm.Simulation.default();
           this.simulation.initialize_viewer(this.$refs.viewerrender.canvas_id);
           this.simulation.create_view(JSON.stringify({type: "VortonRender"}));
+          this.worker_init();
           this.loading = null;
-          this.init_worker();
         })
         .catch((e) => {this.on_error("Error in App::init when importing pkg", e);});
       } catch(e) {
@@ -323,7 +385,7 @@ export default {
       }
     },
 
-    init_worker: function() {
+    worker_init: function() {
       try {
         if (window.Worker) {
           this.loading = "Initializing worker";
@@ -336,11 +398,7 @@ export default {
               if (evt.data !== undefined) {
                 if (evt.data.on_initialized) {
                   this.loading = null;
-                  if (this.simulation) {
-                    this.worker.postMessage({make: this.simulation.get_parameters()});
-                  } else {
-                    throw "Simulation is not initialized when worker is initialized";
-                  }
+                  this.make();
 
                 } else if (evt.data.on_step) {
                   this.log(`Simulation step: ${evt.data.time.toFixed(2)}s [${evt.data.iteration}]`);
@@ -364,7 +422,7 @@ export default {
           throw "WebWorkers are not supported by this web browser. Unable to proceed with solving";
         }
       } catch(e) {
-        this.on_error("Error in App::init_worker", e);
+        this.on_error("Error in App::worker_init", e);
       }
     },
 

@@ -7,11 +7,6 @@ import { Solver } from './Solver.js';
     if (evt.data instanceof Object) {
       if (evt.data.make) {
         solver.set_parameters(evt.data.make);
-        solver.initialize();
-        solver.send_solution();
-
-      } else if (evt.data.update) {
-        solver.set_parameters(evt.data.parameters);
 
       } else if (evt.data.start) {
         solver.start();
