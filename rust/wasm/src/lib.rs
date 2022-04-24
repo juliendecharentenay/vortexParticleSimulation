@@ -1,4 +1,8 @@
-use std::default::Default;
+use std::{
+    default::Default,
+    future::Future,
+    sync::{Arc, Mutex,},
+};
 use wasm_bindgen::{JsCast, JsValue, prelude::wasm_bindgen};
 use js_sys::{ArrayBuffer, Uint8Array};
 use web_sys::{console, MouseEvent, WheelEvent};
@@ -19,7 +23,7 @@ use camera::Camera;
 pub struct Simulation {
     parameters: Parameters,
     solution: Option<Solution>,
-    viewer: Option<Viewer>,
+    viewer: Option<Arc<Mutex<Viewer>>>,
     camera: Option<Camera>,
 }
 
@@ -110,34 +114,42 @@ impl Simulation {
     pub fn initialize_viewer(&mut self, element_id: &str) -> Result<(), JsValue> {
         let viewer = Viewer::from_element_id(element_id)
             .map_err(|e| JsValue::from_str(format!("Simulation::initialize_viewer - Error making viewer: {}", e).as_str()))?;
-        self.viewer = Some(viewer);
+        self.viewer = Some(Arc::new(Mutex::new(viewer)));
         Ok(())
     }
 
-    pub fn create_view(&mut self, data: &str) -> Result<JsValue, JsValue> {
+    pub fn create_view(&mut self, data: JsValue) -> js_sys::Promise { // impl Future<Output = Result<JsValue, JsValue>> {
         if self.viewer.is_none() {
-            return Err(JsValue::from_str("Simulation::draw - Error: viewer is not initialised"));
+            return js_sys::Promise::reject(&JsValue::from_str("Simulation::draw - Error: view is not initialised"));
         }
+        let viewer = Arc::clone(self.viewer.as_ref().unwrap());
 
-        match self.viewer.as_mut().unwrap()
-            .create_view(data) {
+        let data = data.as_string();
+        if data.is_none() {
+            return js_sys::Promise::reject(&JsValue::from_str(format!("Simulation::create_view - Error: data {:?} can not be converted to string", data).as_str()));
+        }
+        let data = data.unwrap();
+
+        wasm_bindgen_futures::future_to_promise(
+        async move {
+        match viewer.lock().unwrap().create_view(data.as_str()) {
                 Ok(uuid) => Ok(JsValue::from_str(uuid.to_hyphenated().to_string().as_str())),
                 Err(e) => Err(JsValue::from_str(format!("{}",e).as_str())),
             }
+        }
+        )
     }
 
     pub fn draw(&mut self) -> Result<(), JsValue> {
-        if self.viewer.is_none() {
-            return Err(JsValue::from_str("Simulation::draw - Error: viewer is not initialised"));
-        }
-
         if self.camera.is_none() {
             self.camera 
                 = Some(Camera::new()
                        .map_err(|e| JsValue::from_str(format!("Simulation::draw - Error creating camera: {:?}", e).as_str()))?);
         }
         let mut camera = self.camera.as_mut().unwrap();
-        let mut viewer = self.viewer.as_mut().unwrap();
+        let mut viewer = self.viewer.as_ref()
+            .ok_or_else(|| JsValue::from_str("Simulation::draw - Error: viewer is not initialised"))?
+            .lock().unwrap();
 
         if camera.width().is_none() 
             || camera.height().is_none() 
@@ -148,10 +160,7 @@ impl Simulation {
             }
 
         if let Some(solution) = self.solution.as_ref() {
-            let matrix4 = camera.to_matrix4()
-                .map_err(|e| JsValue::from_str(format!("Simulation::draw - Error generating camera matrix: {}", e).as_str()))?;
-
-            viewer.draw(solution, &matrix4)
+            viewer.draw(solution, &camera)
                 .map_err(|e| JsValue::from_str(format!("Simulation::draw - Error: {}", e).as_str()))?;
         }
 

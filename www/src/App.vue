@@ -378,6 +378,7 @@ export default {
           this.simulation.create_view(JSON.stringify({type: "VortonRender"}));
           this.worker_init();
           this.loading = null;
+          this.simulation.create_view(JSON.stringify({type: "SkyBox"}));
         })
         .catch((e) => {this.on_error("Error in App::init when importing pkg", e);});
       } catch(e) {

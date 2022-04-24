@@ -259,13 +259,21 @@ impl Camera {
 
 impl Camera {
     pub fn to_matrix4(&self) -> Result<Matrix4<f32>, Box<dyn Error>> {
+        let r = self.to_projection_matrix4()? * self.to_view_matrix4()?;
+        Ok(r)
+    }
+
+    pub fn to_view_matrix4(&self) -> Result<Matrix4<f32>, Box<dyn Error>> {
+        Ok(self.modifier * self.view)
+    }
+
+    pub fn to_projection_matrix4(&self) -> Result<Matrix4<f32>, Box<dyn Error>> {
         let mut r = Matrix4::<f32>::identity();
         if let Some(width) = self.width {
             if let Some(height) = self.height {
-                let projection = Matrix4::<f32>::new_perspective(
+                r = Matrix4::<f32>::new_perspective(
                     width / height , self.fov,
                     0.1f32, 200f32);
-                r = projection * self.modifier * self.view;
             }
         }
         Ok(r)

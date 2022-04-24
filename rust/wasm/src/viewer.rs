@@ -6,7 +6,8 @@ use std::{
 use wasm_bindgen::{JsValue, JsCast};
 use web_sys::{
     console,
-    HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader
+    HtmlCanvasElement, 
+    WebGl2RenderingContext, WebGlProgram, WebGlShader,
 };
 use simple_error::SimpleError;
 use serde::{Deserialize};
@@ -15,24 +16,27 @@ use nalgebra::Matrix4;
 
 use vortex_particle_simulation::{Simulation};
 
-use crate::{Solution};
+use crate::{Solution, Camera};
 
 mod program_vorton_render;
 use program_vorton_render::ProgramVortonRender;
+mod program_skybox;
+use program_skybox::ProgramSkyBox;
 
 mod webgl;
 use webgl::{webgl_link_program, webgl_compile_vertex_shader, webgl_compile_fragment_shader};
 
 pub trait View {
     fn reset(&mut self) -> Result<(), Box<dyn Error>>;
-    fn draw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>, simulation: &Simulation) -> Result<(), Box<dyn Error>>;
-    fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>>;
+    fn draw(&mut self, context: &WebGl2RenderingContext, camera: &Camera, simulation: &Simulation) -> Result<(), Box<dyn Error>>;
+    fn redraw(&mut self, context: &WebGl2RenderingContext, camera: &Camera) -> Result<(), Box<dyn Error>>;
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 enum ViewType {
     VortonRender,
+    SkyBox,
 }
 
 pub struct Viewer {
@@ -60,10 +64,11 @@ impl Viewer {
     */
 
     fn to_view(data: &str) -> Result<Box<dyn View>, Box<dyn Error>> {
-        let view = match serde_json::from_str(data)? {
-            ViewType::VortonRender => ProgramVortonRender::new()?,
+        let view: Box<dyn View> = match serde_json::from_str(data)? {
+            ViewType::VortonRender => Box::new(ProgramVortonRender::new()?),
+            ViewType::SkyBox => Box::new(ProgramSkyBox::new()?),
         };
-        Ok(Box::new(view))
+        Ok(view)
     }
 }
 
@@ -88,7 +93,7 @@ impl Viewer {
         })
     }
 
-    pub fn draw(&mut self, solution: &Solution, camera: &Matrix4<f32>) -> Result<(), Box<dyn Error>> {
+    pub fn draw(&mut self, solution: &Solution, camera: &Camera) -> Result<(), Box<dyn Error>> {
         let mut context: WebGl2RenderingContext
             = self.canvas
             .get_context("webgl2")
