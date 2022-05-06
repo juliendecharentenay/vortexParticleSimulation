@@ -118,7 +118,7 @@ impl Simulation {
         Ok(())
     }
 
-    pub fn create_view(&mut self, data: JsValue) -> js_sys::Promise { // impl Future<Output = Result<JsValue, JsValue>> {
+    pub fn create_view(&mut self, data: JsValue) -> js_sys::Promise {
         if self.viewer.is_none() {
             return js_sys::Promise::reject(&JsValue::from_str("Simulation::draw - Error: view is not initialised"));
         }
@@ -131,12 +131,13 @@ impl Simulation {
         let data = data.unwrap();
 
         wasm_bindgen_futures::future_to_promise(
-        async move {
-        match viewer.lock().unwrap().create_view(data.as_str()) {
-                Ok(uuid) => Ok(JsValue::from_str(uuid.to_hyphenated().to_string().as_str())),
-                Err(e) => Err(JsValue::from_str(format!("{}",e).as_str())),
-            }
-        }
+          async move {
+              viewer.lock().unwrap()
+                  .create_view(data.as_str())
+                  .await
+                  .map(|uuid| JsValue::from_str(uuid.to_hyphenated().to_string().as_str()))
+                  .map_err(|e| JsValue::from_str(format!("{}", e).as_str()))
+          }
         )
     }
 

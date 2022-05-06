@@ -179,9 +179,9 @@ export default {
     try {
       window.onresize = () => {this.on_resize();};
       this.on_resize();
-      this.init_wasm();
-      this.loop();
-
+      this.init_wasm()
+      .then(() => { this.loop(); })
+      .catch((e) => {this.on_error("Error in mounted::promise", e);});
     } catch (e) {
       this.on_error("Error in mounted", e);
     }
@@ -371,16 +371,17 @@ export default {
     init_wasm: function() {
       try {
         this.loading = "Loading WebAssembly module";
-        import("@/pkg")
+        return import("@/pkg")
         .then((wasm) => {
           this.simulation = wasm.Simulation.default();
           this.simulation.initialize_viewer(this.$refs.viewerrender.canvas_id);
-          this.simulation.create_view(JSON.stringify({type: "VortonRender"}));
           this.worker_init();
           this.loading = null;
-          this.simulation.create_view(JSON.stringify({type: "SkyBox"}));
-        })
-        .catch((e) => {this.on_error("Error in App::init when importing pkg", e);});
+          return Promise.all([
+              this.simulation.create_view(JSON.stringify({type: "VortonRender"})),
+              this.simulation.create_view(JSON.stringify({type: "SkyBox"}))
+            ]);
+        });
       } catch(e) {
         this.on_error("Error in App::init_wasm", e);
       }

@@ -45,9 +45,9 @@ pub struct Viewer {
 }
 
 impl Viewer {
-    pub fn create_view(&mut self, data: &str) -> Result<Uuid, Box<dyn Error>> {
+    pub async fn create_view(&mut self, data: &str) -> Result<Uuid, Box<dyn Error>> {
         let uuid = Uuid::new_v4();
-        let view = Viewer::to_view(data)?;
+        let view = Viewer::to_view(data).await?;
         self.views.insert(uuid.clone(), view);
         Ok(uuid)
     }
@@ -63,10 +63,10 @@ impl Viewer {
     }
     */
 
-    fn to_view(data: &str) -> Result<Box<dyn View>, Box<dyn Error>> {
+    async fn to_view(data: &str) -> Result<Box<dyn View>, Box<dyn Error>> {
         let view: Box<dyn View> = match serde_json::from_str(data)? {
             ViewType::VortonRender => Box::new(ProgramVortonRender::new()?),
-            ViewType::SkyBox => Box::new(ProgramSkyBox::new()?),
+            ViewType::SkyBox => Box::new(ProgramSkyBox::new().await?),
         };
         Ok(view)
     }

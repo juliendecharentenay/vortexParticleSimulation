@@ -30,6 +30,7 @@ version = "0.3"
 features = [
   'Blob',
   'console',
+  'CanvasRenderingContext2d',
   'Document',
   'Element',
   'HtmlCanvasElement',
