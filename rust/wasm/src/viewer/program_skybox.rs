@@ -1,26 +1,20 @@
 use std::{
     error::Error,
-    rc::Rc,
 };
-use futures::executor::block_on;
 
 use wasm_bindgen::{
-    closure::Closure,
     JsCast,
     JsValue,
 };
 use wasm_bindgen_futures::{
     JsFuture,
-    spawn_local,
 };
 use web_sys::{
     Blob,
-    HtmlImageElement,
     ImageBitmap,
     Response,
     WebGlProgram, 
     WebGl2RenderingContext,
-    WebGlTexture,
     WebGlVertexArrayObject,
     console,
 };

@@ -21,7 +21,7 @@ impl Vorton {
     }
 
     pub fn velocity_contribution(&self, position: &Point3<f64>) -> Vector3<f64> {
-        let r = position - self.position;
+        let r = position - &self.position;
         self.vorticity
             .cross(&r)
             .scale(1.0/(4.0 * std::f64::consts::PI * r.norm().max(self.radius).powi(3)) * self.volume)
@@ -29,7 +29,7 @@ impl Vorton {
 
     pub fn advect(&self, velocity: &Vector3<f64>, time_step: f64) -> Vorton {
         Vorton::new(
-            self.position + velocity.scale(time_step),
+            &self.position + &velocity.scale(time_step),
             self.vorticity.clone(),
             self.volume
         )
@@ -38,7 +38,7 @@ impl Vorton {
     pub fn step(&self, source: &Vector3<f64>, time_step: f64) -> Vorton {
         Vorton::new(
             self.position.clone(),
-            self.vorticity + source.scale(time_step),
+            &self.vorticity + source.scale(time_step),
             self.volume
         )
     }

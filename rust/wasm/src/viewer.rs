@@ -3,16 +3,14 @@ use std::{
     error::Error,
 };
 
-use wasm_bindgen::{JsValue, JsCast};
+use wasm_bindgen::{JsCast};
 use web_sys::{
-    console,
     HtmlCanvasElement, 
-    WebGl2RenderingContext, WebGlProgram, WebGlShader,
+    WebGl2RenderingContext,
 };
 use simple_error::SimpleError;
 use serde::{Deserialize};
 use uuid::Uuid;
-use nalgebra::Matrix4;
 
 use vortex_particle_simulation::{Simulation};
 
@@ -94,7 +92,7 @@ impl Viewer {
     }
 
     pub fn draw(&mut self, solution: &Solution, camera: &Camera) -> Result<(), Box<dyn Error>> {
-        let mut context: WebGl2RenderingContext
+        let context: WebGl2RenderingContext
             = self.canvas
             .get_context("webgl2")
             .map_err(|e| Box::new(SimpleError::new(format!("Viewer::draw - Error retrieving webgl2 context. Error: {:?}", e).as_str())))?

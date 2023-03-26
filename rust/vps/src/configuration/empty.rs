@@ -22,7 +22,7 @@ impl InitialConditions for Empty {
         (Point3::<f64>::new(0.0, 0.0, 0.0), Point3::<f64>::new(1.0, 1.0, 1.0))
     }
 
-    fn vorticity(&self, p: &Point3<f64>) -> Vector3<f64> {
+    fn vorticity(&self, _p: &Point3<f64>) -> Vector3<f64> {
         Vector3::new(0.0, 0.0, 0.0)
     }
 }

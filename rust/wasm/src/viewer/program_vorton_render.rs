@@ -10,8 +10,6 @@ use super::{
 };
 use super::{webgl_link_program, webgl_compile_vertex_shader, webgl_compile_fragment_shader};
 
-use nalgebra::Matrix4;
-
 pub struct ProgramVortonRender
 {
     program: Option<WebGlProgram>,

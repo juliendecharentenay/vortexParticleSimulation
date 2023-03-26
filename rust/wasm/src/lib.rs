@@ -1,11 +1,10 @@
 use std::{
     default::Default,
-    future::Future,
     sync::{Arc, Mutex,},
 };
 use wasm_bindgen::{JsCast, JsValue, prelude::wasm_bindgen};
-use js_sys::{ArrayBuffer, Uint8Array};
-use web_sys::{console, MouseEvent, WheelEvent};
+use js_sys::{ArrayBuffer};
+use web_sys::{MouseEvent};
 
 mod parameters;
 use parameters::Parameters;
@@ -147,7 +146,7 @@ impl Simulation {
                 = Some(Camera::new()
                        .map_err(|e| JsValue::from_str(format!("Simulation::draw - Error creating camera: {:?}", e).as_str()))?);
         }
-        let mut camera = self.camera.as_mut().unwrap();
+        let camera = self.camera.as_mut().unwrap();
         let mut viewer = self.viewer.as_ref()
             .ok_or_else(|| JsValue::from_str("Simulation::draw - Error: viewer is not initialised"))?
             .lock().unwrap();
@@ -225,8 +224,7 @@ impl Simulation {
 impl Simulation {
     pub fn on_controller_signal(&mut self, signal: JsValue) -> Result<(), JsValue> {
         if let Some(camera) = self.camera.as_mut() {
-            camera.on_controller_signal(signal.into_serde()
-                                        .map_err(|e| JsValue::from_str(format!("Simulation::on_controller_signal - Error: {}", e).as_str()))?)
+            camera.on_controller_signal(serde_wasm_bindgen::from_value(signal)?)
                 .map_err(|e| JsValue::from_str(format!("Simulation::on_controller_signal - Error: {}", e).as_str()))?;
         }
         Ok(())

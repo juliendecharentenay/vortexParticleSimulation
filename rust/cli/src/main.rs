@@ -1,7 +1,6 @@
 use std::process;
 
 mod config;
-// mod profiler;
 mod runner;
 
 fn main() {

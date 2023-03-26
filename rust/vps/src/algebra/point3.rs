@@ -8,37 +8,53 @@ use serde::{Serialize, Deserialize};
 
 use crate::algebra::Vector3;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+/// `Point3` represents a spatial location with an `x`, `y` and `z` coordinate
+/// with associated operations.
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Point3<T>
 {
-    pub x: T,
-    pub y: T,
-    pub z: T,
+  pub x: T,
+  pub y: T,
+  pub z: T,
+}
+
+impl<T> Default for Point3<T> 
+where T: num::Zero
+{
+  /// Defines a default `Point3` located at `0, 0, 0`.
+  fn default() -> Point3<T> {
+    Point3 { x: T::zero(), y: T::zero(), z: T::zero() }
+  }
 }
 
 impl<T> Point3<T> 
 where T: Copy
 {
-    pub fn new(x: T, y: T, z: T) -> Point3<T> {
-        Point3 { x, y, z, }
-    }
+  /// Creates a new `Point3` at the nominated coordinates
+  pub fn new(x: T, y: T, z: T) -> Point3<T> {
+    Point3 { x, y, z, }
+  }
+}
 
-    pub fn as_array(&self) -> [T; 3] {
-        [self.x, self.y, self.z]
-    }
+impl<T> Sub<&Point3<T>> for &Point3<T>
+where T: Float
+{
+  type Output = Vector3<T>;
+  fn sub(self, other: &Point3<T>) -> Self::Output {
+    Vector3::<T>::new(self.x - other.x, self.y - other.y, self.z - other.z)
+  }
 }
 
 impl<T> Sub for Point3<T> 
 where T: Float
 {
     type Output = Vector3<T>;
-
-    fn sub(self, other: Self) -> Self::Output {
+    fn sub(self, other: Point3<T>) -> Self::Output {
         Vector3::<T>::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 }
 
-impl<'a, T> Sub<Point3<T>> for &'a Point3<T>
+impl<T> Sub<Point3<T>> for &Point3<T>
 where T: Float
 {
     type Output = Vector3<T>;
@@ -47,21 +63,40 @@ where T: Float
     }
 }
 
-
 impl<T> Add<Vector3<T>> for Point3<T>
+where T: Float + std::ops::AddAssign
+{
+  type Output = Point3<T>;
+  fn add(mut self, other: Vector3<T>) -> Self::Output {
+    self.x += other.x; self.y += other.y; self.z += other.z;
+    self
+  }
+}
+
+impl<T> Sub<Vector3<T>> for Point3<T>
+where T: Float + std::ops::SubAssign
+{
+  type Output = Point3<T>;
+  fn sub(mut self, other: Vector3<T>) -> Self::Output {
+    self.x -= other.x; self.y -= other.y; self.z -= other.z;
+    self
+  }
+}
+
+impl<T> Add<&Vector3<T>> for &Point3<T>
 where T: Float
 {
     type Output = Point3<T>;
-    fn add(self, other: Vector3<T>) -> Self::Output {
+    fn add(self, other: &Vector3<T>) -> Self::Output {
         Point3::new(self.x + other.x, self.y + other.y, self.z + other.z)
     }
 }
 
-impl<T> Sub<Vector3<T>> for Point3<T>
+impl<T> Sub<&Vector3<T>> for &Point3<T>
 where T: Float
 {
     type Output = Point3<T>;
-    fn sub(self, other: Vector3<T>) -> Self::Output {
+    fn sub(self, other: &Vector3<T>) -> Self::Output {
         Point3::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 }

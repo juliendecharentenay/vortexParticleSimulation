@@ -7,7 +7,7 @@ use num::{Float, NumCast};
 
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Vector3<T>
 {
     pub x: T,
@@ -79,12 +79,22 @@ where T: Float + Mul<Output = T> + PartialOrd + Sub<Output = T>
 }
 
 impl<T> Add for Vector3<T> 
-where T: Float
+where T: Float + std::ops::AddAssign
 {
     type Output = Self;
-    fn add(self, other: Self) -> Self::Output {
-        Vector3::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    fn add(mut self, other: Self) -> Self::Output {
+      self.x += other.x; self.y += other.y; self.z += other.z;
+      self
     }
+}
+
+impl<T> Add<Vector3<T>> for &Vector3<T>
+where T: Float
+{
+  type Output = Vector3<T>;
+  fn add(self, other: Vector3<T>) -> Self::Output {
+      Vector3::new(self.x + other.x, self.y + other.y, self.z + other.z)
+  }
 }
 
 impl<T> Sub for Vector3<T>

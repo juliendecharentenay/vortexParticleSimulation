@@ -1,8 +1,11 @@
+//! This crate provides a fluid simulation engine using the vortex particle method. The fluid 
+//! is modelled using a set of particle representing the fluid vorticity. The particles are 
+//! convected in a lagrangien manner (ie the particles moves).
+//!
 use std::error::Error;
 use std::ptr;
 
 use serde::{Serialize, Deserialize};
-use serde_json;
 use algebra::{Vector3};
 
 mod algebra;
@@ -46,8 +49,7 @@ impl Simulation {
     /**
      * Create a new simulation from a string slice
      */
-    pub fn make_from_configuration(content: &[u8]) -> Result<Simulation, Box<dyn Error>> {
-        let configuration = Configuration::make_from(content)?;
+    pub fn make_from_configuration(configuration: Configuration) -> Result<Simulation, Box<dyn Error>> {
         let vortons = sim::functions::make_vortons(&configuration)?;
         let free_stream_velocity = configuration.get_initial_conditions().free_stream_velocity();
         println!("Domain min (X/Y/Z): {}, {}, {}", configuration.domain.min.x, configuration.domain.min.y, configuration.domain.min.z);
@@ -57,20 +59,6 @@ impl Simulation {
             configuration,
             time: 0.0, iteration: 0, vortons,
             free_stream_velocity})
-    }
-
-    /**
-     * Create a new simulation from a saved simulation
-     */
-    pub fn make_from_sim(content: &[u8]) -> Result<Simulation, Box<dyn Error>> {
-        Ok(serde_json::from_slice(content)?)
-    }
-
-    /**
-     * Save a simulation to a file
-     */
-    pub fn to_content(&self) -> Result<Vec<u8>, Box<dyn Error>> {
-        Ok(serde_json::to_vec_pretty(self)?)
     }
 
     /**

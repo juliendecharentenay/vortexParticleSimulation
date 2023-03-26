@@ -4,7 +4,7 @@ use crate::algebra::{Point3, Vector3};
 
 use crate::configuration::{InitialConditions};
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct VortexRing {
     pub center: Point3<f64>,
     pub direction: Vector3<f64>,
@@ -33,12 +33,12 @@ impl InitialConditions for VortexRing {
         let dcx = Vector3::x().cross(&dir);
         let v2 = if dcx.norm() > 1e-5 { dcx } else { Vector3::y() };
         let v3 = dir.cross(&v2);
-        let min = self.center
-            - dir.scale(1.1*self.thickness)
+        let min = &self.center
+            - &dir.scale(1.1*self.thickness)
             - v2.scale(1.1*(self.radius+self.thickness))
             - v3.scale(1.1*(self.radius+self.thickness));
-        let max = self.center
-            + dir.scale(1.1*self.thickness)
+        let max = &self.center
+            + &dir.scale(1.1*self.thickness)
             + v2.scale(1.1*(self.radius+self.thickness))
             + v3.scale(1.1*(self.radius+self.thickness));
         (min, max)
@@ -46,7 +46,7 @@ impl InitialConditions for VortexRing {
 
     fn vorticity(&self, p: &Point3<f64>) -> Vector3<f64> {
         let dir = self.direction_normalized();
-        let v = p - self.center;         // Vector [center of vortex ring to point]
+        let v = p - &self.center;         // Vector [center of vortex ring to point]
         let d_dir = v.dot(&dir);         // Distance in the vortex ring direction
         let v_rad = v - dir.scale(d_dir); // Vector in the radial direction
         let d_rad = v_rad.norm() - self.radius; // Distance from the ring center in the radial plane

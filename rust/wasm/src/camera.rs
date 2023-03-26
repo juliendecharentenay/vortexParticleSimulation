@@ -5,7 +5,6 @@ use std::{
 use web_sys::{console, MouseEvent, WheelEvent, Touch, TouchEvent};
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use nalgebra::{Point3, Vector3, Isometry3, Matrix4};
-use simple_error::SimpleError;
 use serde::Deserialize;
 
 #[wasm_bindgen]
@@ -190,7 +189,7 @@ impl Camera {
                 }
                 Ok(())
             },
-            _ => Err(Box::new(SimpleError::new(format!("Event type {} is not supported", event.type_()).as_str()))),
+            _ => Err(format!("Event type {} is not supported", event.type_()).into()),
         }
     }
 

@@ -36,7 +36,7 @@ pub struct UniformGrid {
 
 impl UniformGrid {
     fn new(min: Point3<f64>, max: Point3<f64>, n_points: (usize, usize, usize)) -> Result<UniformGrid, Box<dyn Error>> {
-        let v = max - min;
+        let v = &max - &min;
         let delta = (
                 v.x / (n_points.0 - 1) as f64,
                 v.y / (n_points.1 - 1) as f64,
@@ -52,7 +52,7 @@ impl UniformGrid {
     */
 
     pub fn from_delta(min: Point3<f64>, max: Point3<f64>, delta: f64) -> Result<UniformGrid, Box<dyn Error>> {
-        let v = max - min;
+        let v = &max - &min;
         let n_points = ((v.x / delta) as usize + 1,
                         (v.y / delta) as usize + 1,
                         (v.z / delta) as usize + 1);
@@ -60,7 +60,7 @@ impl UniformGrid {
     }
 
     pub fn from_n_cells_target(min: Point3<f64>, max: Point3<f64>, n_cells_target: usize) -> Result<UniformGrid, Box<dyn Error>> {
-        let v = max - min;
+        let v = &max - &min;
         let cell_volume = (v.x * v.y * v.z) / n_cells_target as f64;
         let d = cell_volume.cbrt();
         UniformGrid::from_delta(min, max, d)
@@ -86,8 +86,8 @@ impl UniformGrid {
 
     pub fn cell_position(&self, index: usize) -> Point3<f64> {
         let (i, j, k) = UniformGrid::index_to_ijk(index, self.n_points.0 - 1, self.n_points.1 - 1, self.n_points.2 - 1);
-        self.min 
-            + Vector3::x().scale(((i as f64)+0.5)*self.delta.0)
+        &self.min 
+            + &Vector3::x().scale(((i as f64)+0.5)*self.delta.0)
             + Vector3::y().scale(((j as f64)+0.5)*self.delta.1)
             + Vector3::z().scale(((k as f64)+0.5)*self.delta.2)
     }

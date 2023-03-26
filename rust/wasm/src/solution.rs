@@ -6,7 +6,7 @@ use web_sys::{console};
 use js_sys::{ArrayBuffer, Uint8Array};
 use bincode;
 
-use vortex_particle_simulation::{Simulation, Profiler, Configuration};
+use vortex_particle_simulation::{Simulation, Profiler};
 
 #[wasm_bindgen(module = "/functions.js")]
 extern "C" {
@@ -23,7 +23,7 @@ impl Solution {
 
 impl Solution {
     pub fn from_configuration(configuration: &str) -> Result<Solution, Box<dyn Error>> {
-        Ok( Solution { simulation: Simulation::make_from_configuration(configuration.as_bytes())? })
+        Ok( Solution { simulation: Simulation::make_from_configuration(serde_json::from_str(configuration)?)? })
     }
 
     pub fn from_arraybuffer(data: ArrayBuffer) -> Result<Solution, Box<dyn Error>> {
@@ -37,12 +37,10 @@ impl Solution {
     }
 
     pub fn iteration(&self) -> usize {
-      // JsValue::from_f64(self.simulation.iteration() as f64)
       self.simulation.iteration()
     }
 
     pub fn time(&self) -> f64 {
-        // JsValue::from_f64(self.simulation.time())
         self.simulation.time()
     }
 

@@ -1,18 +1,17 @@
-use std::error::Error;
 use std::time::SystemTime;
 use std::fs::{self, File};
 use std::path::Path;
 use std::io::Write;
 
-use crate::{config}; // , profiler::Profiler};
+use crate::{config};
 use vortex_particle_simulation::{Simulation, Profiler};
 
-pub fn run(config: config::Config) -> Result<(), Box<dyn Error>> {
+pub fn run(config: config::Config) -> Result<(), Box<dyn std::error::Error>> {
     /* Run in headless mode */
     /* Initialise the simulation */
     let mut sim = match &config.initial {
-      config::Initial::Init(f)    => Some(Simulation::make_from_configuration(&fs::read(f)?)?),
-      config::Initial::Restart(f) => Some(Simulation::make_from_sim(&fs::read(f)?)?),
+      config::Initial::Init(f)    => Some(Simulation::make_from_configuration(serde_json::from_reader(File::open(f)?)?)?),
+      config::Initial::Restart(f) => Some(serde_json::from_reader(File::open(f)?)?),
       config::Initial::Nothing    => None,
     };
 
@@ -24,7 +23,7 @@ pub fn run(config: config::Config) -> Result<(), Box<dyn Error>> {
               config::Action::Nothing => (),
           };
           match &config.save {
-              config::Save::Save(f) => {fs::write(f, &sim.to_content()?)?; Ok(())},
+              config::Save::Save(f) => Ok(serde_json::to_writer_pretty(File::create(f)?, &sim)?),
               config::Save::Nothing => Ok(()),
           }
       },
@@ -32,7 +31,7 @@ pub fn run(config: config::Config) -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn run_simulation(config: &config::Config, simulation: &mut Simulation) -> Result<(), Box<dyn Error>> {
+fn run_simulation(config: &config::Config, simulation: &mut Simulation) -> Result<(), Box<dyn std::error::Error>> {
     output(config, simulation)?;
     let system_time = SystemTime::now();
     let time_step = config.time_step;
@@ -50,14 +49,14 @@ fn run_simulation(config: &config::Config, simulation: &mut Simulation) -> Resul
     Ok(())
 }
 
-fn output(config: &config::Config, simulation: &Simulation) -> Result<(), Box<dyn Error>> {
+fn output(config: &config::Config, simulation: &Simulation) -> Result<(), Box<dyn std::error::Error>> {
     match &config.output {
         config::Output::CSV(dir) => output_vortex_particles_to_csv(dir, simulation),
         config::Output::Nothing  => Ok(()),
     }
 }
 
-fn output_vortex_particles_to_csv(dir: &String, simulation: &Simulation) -> Result<(), Box<dyn Error>> {
+fn output_vortex_particles_to_csv(dir: &String, simulation: &Simulation) -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new(".").join(dir);
     if ! path.exists() { fs::create_dir_all(path.clone())?;}
     let mut file = File::create(path.join(format!("vortex_particles_{}.csv", simulation.iteration())))?;
