@@ -4,7 +4,6 @@ use crate::algebra::{Point3, Vector3};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Vorton {
-    radius: f64,
     volume: f64,
     position: Point3<f64>,
     vorticity: Vector3<f64>,
@@ -13,7 +12,6 @@ pub struct Vorton {
 impl Vorton {
     pub fn new(position: Point3<f64>, vorticity: Vector3<f64>, volume: f64) -> Vorton {
         Vorton {
-            radius: volume.cbrt()*0.1,
             volume,
             position,
             vorticity,
@@ -22,9 +20,10 @@ impl Vorton {
 
     pub fn velocity_contribution(&self, position: &Point3<f64>) -> Vector3<f64> {
         let r = position - &self.position;
+        let ratio = 4.0 / 3.0 * std::f64::consts::PI * r.norm().powi(3) / self.volume;
         self.vorticity
             .cross(&r)
-            .scale(1.0/(4.0 * std::f64::consts::PI * r.norm().max(self.radius).powi(3)) * self.volume)
+            .scale(1.0/(3.0 * ratio.max(5.0)))
     }
 
     pub fn advect(&self, velocity: &Vector3<f64>, time_step: f64) -> Vorton {
@@ -51,7 +50,6 @@ impl Vorton {
 /*
 impl Aggregatable for Vorton {
     fn aggregate(&self, other: &Vorton) -> Vorton {
-        // let radius = 0.5*(self.radius + other.radius);
         let volume = self.volume + other.volume;
         let self_vort_vol = self.vorticity.norm()*self.volume;
         let other_vort_vol = other.vorticity.norm()*other.volume;

@@ -52,14 +52,25 @@ fn run_simulation(config: &config::Config, simulation: &mut Simulation) -> Resul
 fn output(config: &config::Config, simulation: &Simulation) -> Result<(), Box<dyn std::error::Error>> {
     match &config.output {
         config::Output::CSV(dir) => output_vortex_particles_to_csv(dir, simulation),
+        config::Output::Velocity(dir) => {
+          let file = open_file(dir, format!("velocity_{}.csv", simulation.iteration()))?;
+          vortex_particle_simulation::GridBuilder::default()
+          .build()?
+          .to_writer_csv(file, |p| {Ok(simulation.velocity_at(p).x)})?;
+          Ok(())
+        },
         config::Output::Nothing  => Ok(()),
     }
 }
 
+fn open_file(dir: &String, fname: String) -> Result<std::fs::File, Box<dyn std::error::Error>> {
+  let path = Path::new(".").join(dir);
+  if ! path.exists() { fs::create_dir_all(path.clone())?;}
+  Ok(File::create(path.join(fname))?)
+}
+
 fn output_vortex_particles_to_csv(dir: &String, simulation: &Simulation) -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new(".").join(dir);
-    if ! path.exists() { fs::create_dir_all(path.clone())?;}
-    let mut file = File::create(path.join(format!("vortex_particles_{}.csv", simulation.iteration())))?;
+    let mut file = open_file(dir, format!("vortex_particles_{}.csv", simulation.iteration()))?;
     file.write_all(b"x coord, y coord, z coord, vorticity\n")?;
     for vorton in simulation.vortons().iter() { 
         file.write_all(

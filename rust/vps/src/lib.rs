@@ -6,16 +6,13 @@ use std::error::Error;
 use std::ptr;
 
 use serde::{Serialize, Deserialize};
-use algebra::{Vector3};
 
-mod algebra;
-mod sim;
-mod configuration;
-mod profiler;
+mod algebra; use algebra::{Vector3};
+mod sim; pub use sim::{Vorton};
+mod configuration; pub use configuration::{InitialConditions, Configuration};
+mod profiler; pub use profiler::Profiler;
+mod output; pub use output::{Grid, GridBuilder};
 
-pub use sim::{Vorton};
-pub use configuration::{InitialConditions, Configuration};
-pub use profiler::Profiler;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Simulation {
@@ -78,6 +75,13 @@ impl Simulation {
         self.profiling.print();
     }
     */
+
+    /// Report the velocity at a given point
+    pub fn velocity_at(&self, position: &algebra::Point3<f64>) -> Vector3<f64> {
+      sim::functions::velocity_at(position, 
+                                  self.free_stream_velocity.clone(),
+                                  self.vortons.iter())
+    }
 
     /*
      * Step helper functions

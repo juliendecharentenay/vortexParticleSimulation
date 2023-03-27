@@ -29,6 +29,7 @@ pub enum Action {
 
 pub enum Output {
     CSV(String),
+    Velocity(String),
     Nothing,
 }
 
@@ -63,6 +64,11 @@ impl Config {
                  .help("Output vortex particle positions and vorticity to CSV file format")
                  .value_name("DIRECTORY")
                  .action(clap::ArgAction::Set))
+            .arg(Arg::new("ovel")
+                 .long("out_velocity")
+                 .help("Output velocity on a regular grid using the XYZ format")
+                 .value_name("DIRECTORY")
+                 .action(clap::ArgAction::Set))
             .arg(Arg::new("iteration")
                  .long("iteration")
                  .help("Nominate the number of iteration to run")
@@ -81,7 +87,8 @@ impl Config {
         if matches.contains_id("run")               { action = Action::Run; }
 
         let mut output = Output::Nothing;
-        if let Some(d) = matches.get_one::<String>("csv") { output = Output::CSV(d.clone()); }
+        if let Some(d) = matches.get_one::<String>("csv")  { output = Output::CSV(d.clone()); }
+        if let Some(d) = matches.get_one::<String>("ovel") { output = Output::Velocity(d.clone()); }
 
         let mut initial = Initial::Nothing;
         if let Some(d) = matches.get_one::<String>("init") { initial = Initial::Init(d.clone()); }
