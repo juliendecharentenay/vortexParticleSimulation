@@ -1,11 +1,9 @@
 use std::error::Error;
 use crate::algebra::{Vector3, Point3};
 
-mod uniformgrid;
-pub mod vorton;
-
-use uniformgrid::UniformGrid;
-pub use vorton::Vorton;
+mod uniformgrid; pub use uniformgrid::UniformGrid;
+mod vorton; pub use vorton::Vorton;
+mod super_vorton; pub use super_vorton::SuperVorton;
 
 use crate::configuration::{InitialConditions, Configuration};
 

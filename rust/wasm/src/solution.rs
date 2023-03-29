@@ -23,7 +23,9 @@ impl Solution {
 
 impl Solution {
     pub fn from_configuration(configuration: &str) -> Result<Solution, Box<dyn Error>> {
-        Ok( Solution { simulation: Simulation::make_from_configuration(serde_json::from_str(configuration)?)? })
+      Ok(Solution { 
+        simulation: Simulation::try_from(&serde_json::from_str(configuration)?)? 
+      })
     }
 
     pub fn from_arraybuffer(data: ArrayBuffer) -> Result<Solution, Box<dyn Error>> {

@@ -1,6 +1,5 @@
 use clap::{Arg, Command};
 
-
 pub struct Config {
     pub action: Action,
     pub output: Output,
@@ -8,6 +7,13 @@ pub struct Config {
     pub save: Save,
     pub n_iterations: usize,
     pub time_step: f64,
+    pub vorton_to_velocity_algorithm: VortonToVelocityAlgorithm,
+}
+
+#[derive(Debug)]
+pub enum VortonToVelocityAlgorithm {
+  Simple,
+  Tree,
 }
 
 pub enum Initial {
@@ -21,7 +27,6 @@ pub enum Save {
     Nothing,
 }
 
-#[derive(Debug)]
 pub enum Action {
     Run,
     Nothing,
@@ -58,7 +63,7 @@ impl Config {
                  .short('r')
                  .long("run")
                  .help("Run simulation")
-                 .action(clap::ArgAction::SetTrue))
+                 .action(clap::ArgAction::Count))
             .arg(Arg::new("csv")
                  .long("csv")
                  .help("Output vortex particle positions and vorticity to CSV file format")
@@ -81,10 +86,18 @@ impl Config {
                  .action(clap::ArgAction::Set)
                  .value_name("DURATION")
                  .default_value("0.03"))
+            .arg(Arg::new("alg_simple")
+                 .long("alg_simple")
+                 .help("Use the simple algorithm for calculating velocity from vortons")
+                 .action(clap::ArgAction::Count))
+            .arg(Arg::new("alg_tree")
+                 .long("alg_tree")
+                 .help("Use the tree algorithm for calculating velocity from vortons")
+                 .action(clap::ArgAction::Count))
             .get_matches();
         
         let mut action = Action::Nothing;
-        if matches.contains_id("run")               { action = Action::Run; }
+        if matches.get_count("run") > 0 { action = Action::Run; }
 
         let mut output = Output::Nothing;
         if let Some(d) = matches.get_one::<String>("csv")  { output = Output::CSV(d.clone()); }
@@ -103,8 +116,11 @@ impl Config {
         let mut time_step = 0.03;
         if let Some(v) = matches.get_one::<String>("time_step") { time_step = v.parse::<f64>().unwrap(); }
 
-        Ok(Config { action, output, initial, save, n_iterations, time_step, })
+        let mut vorton_to_velocity_algorithm = VortonToVelocityAlgorithm::Simple;
+        if matches.get_count("alg_simple") > 0 { vorton_to_velocity_algorithm = VortonToVelocityAlgorithm::Simple; }
+        if matches.get_count("alg_tree") > 0 { vorton_to_velocity_algorithm = VortonToVelocityAlgorithm::Tree; }
+
+        Ok(Config { action, output, initial, save, n_iterations, time_step, vorton_to_velocity_algorithm, })
     }
 }
-
 

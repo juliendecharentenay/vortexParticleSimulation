@@ -1,0 +1,17 @@
+{
+	"n_vortons": 2000,
+	"initial_conditions": {
+		"InitialConditionVortexRing": {
+			"center": [0.0, 0.0, 0.0],
+			"direction": [1.0, 0.0, 0.0],
+			"intensity": 1.0,
+			"radius": 1.0,
+			"thickness": 0.5
+		}
+	},
+	"domain": {
+		"min": [-10.0, -10.0, -10.0],
+		"max": [ 10.0,  10.0,  10.0]
+	},
+	"viscosity": 1e-5
+}

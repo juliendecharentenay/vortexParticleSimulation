@@ -4,19 +4,30 @@ use std::path::Path;
 use std::io::Write;
 
 use crate::{config};
-use vortex_particle_simulation::{Simulation, Profiler};
+use vortex_particle_simulation::{Simulation, Profiler, VortonToVelocityAlgorithm};
 
 pub fn run(config: config::Config) -> Result<(), Box<dyn std::error::Error>> {
+  use std::convert::TryFrom;
+
     /* Run in headless mode */
     /* Initialise the simulation */
     let mut sim = match &config.initial {
-      config::Initial::Init(f)    => Some(Simulation::make_from_configuration(serde_json::from_reader(File::open(f)?)?)?),
+      config::Initial::Init(f)    => Some(Simulation::try_from(&serde_json::from_reader(File::open(f)?)?)?),
       config::Initial::Restart(f) => Some(serde_json::from_reader(File::open(f)?)?),
       config::Initial::Nothing    => None,
     };
 
     match &mut sim {
       Some(sim) => {
+          match &config.vorton_to_velocity_algorithm {
+            config::VortonToVelocityAlgorithm::Simple => {
+              sim.use_vorton_to_velocity(VortonToVelocityAlgorithm::Simple);
+            },
+            config::VortonToVelocityAlgorithm::Tree => {
+              sim.use_vorton_to_velocity(VortonToVelocityAlgorithm::Tree(6));
+            },
+          };
+
           /* Treat the simulation */
           match &config.action {
               config::Action::Run     => run_simulation(&config, sim)?,
@@ -53,10 +64,11 @@ fn output(config: &config::Config, simulation: &Simulation) -> Result<(), Box<dy
     match &config.output {
         config::Output::CSV(dir) => output_vortex_particles_to_csv(dir, simulation),
         config::Output::Velocity(dir) => {
+          let vorton_to_velocity = simulation.get_vorton_to_velocity()?;
           let file = open_file(dir, format!("velocity_{}.csv", simulation.iteration()))?;
           vortex_particle_simulation::GridBuilder::default()
           .build()?
-          .to_writer_csv(file, |p| {Ok(simulation.velocity_at(p).x)})?;
+          .to_writer_csv(file, |p| {Ok(vorton_to_velocity.velocity_at(p)?.x)})?;
           Ok(())
         },
         config::Output::Nothing  => Ok(()),

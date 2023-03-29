@@ -15,6 +15,18 @@ pub struct Vector3<T>
     pub z: T,
 }
 
+impl<T> Default for Vector3<T> 
+where T: Float
+{
+  fn default() -> Vector3<T> {
+    Vector3 {
+      x: NumCast::from(0.0).unwrap(),
+      y: NumCast::from(0.0).unwrap(),
+      z: NumCast::from(0.0).unwrap(),
+    }
+  }
+}
+
 impl<T> Vector3<T> 
 where T: Float + Mul<Output = T> + PartialOrd + Sub<Output = T>
 {
@@ -44,6 +56,16 @@ where T: Float + Mul<Output = T> + PartialOrd + Sub<Output = T>
 
     pub fn new(x: T, y: T, z: T) -> Vector3<T> {
         Vector3 { x, y, z, }
+    }
+
+    pub fn orthogonal(&self) -> Vector3<T> {
+      if self.norm() < NumCast::from(1e-8).unwrap() {
+        Vector3::x()
+      } else if (self.normalize().dot(&Vector3::x()) - NumCast::from(1.0).unwrap()).abs() < NumCast::from(1e-8).unwrap() {
+        Vector3::y()
+      } else {
+        self.normalize().cross(&Vector3::x())
+      }
     }
 
     pub fn cross(&self, v: &Vector3<T>) -> Vector3<T> {

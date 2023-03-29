@@ -9,6 +9,16 @@ pub struct Vorton {
     vorticity: Vector3<f64>,
 }
 
+impl Default for Vorton {
+  fn default() -> Vorton {
+    Vorton {
+      volume: f64::EPSILON,
+      position: Point3::origin(),
+      vorticity: Vector3::new(0.0, 0.0, 0.0),
+    }
+  }
+}
+
 impl Vorton {
     pub fn new(position: Point3<f64>, vorticity: Vector3<f64>, volume: f64) -> Vorton {
         Vorton {
@@ -18,12 +28,19 @@ impl Vorton {
         }
     }
 
+    pub fn is_inside(&self, position: &Point3<f64>) -> bool {
+      self.ratio(&(position - &self.position)) <= 8.0
+    }
+
+    fn ratio(&self, r: &Vector3<f64>) -> f64 {
+      4.0 / 3.0 * std::f64::consts::PI * r.norm().powi(3) / self.volume
+    }
+
     pub fn velocity_contribution(&self, position: &Point3<f64>) -> Vector3<f64> {
         let r = position - &self.position;
-        let ratio = 4.0 / 3.0 * std::f64::consts::PI * r.norm().powi(3) / self.volume;
         self.vorticity
             .cross(&r)
-            .scale(1.0/(3.0 * ratio.max(5.0)))
+            .scale(1.0/(3.0 * self.ratio(&r).max(8.0)))
     }
 
     pub fn advect(&self, velocity: &Vector3<f64>, time_step: f64) -> Vorton {
@@ -42,28 +59,38 @@ impl Vorton {
         )
     }
 
-    pub fn volume(&self)    -> f64      { self.volume.clone() }
-    pub fn vorticity(&self) -> &Vector3<f64>  { &self.vorticity }
-    pub fn position(&self)  -> &Point3<f64> { &self.position }
+    pub fn volume(&self)    -> f64           { self.volume.clone() }
+    pub fn vorticity(&self) -> &Vector3<f64> { &self.vorticity }
+    pub fn position(&self)  -> &Point3<f64>  { &self.position }
 }
+
+/*
+impl std::ops::Add<&Vorton> for &Vorton {
+  type Output = Vorton;
+  fn add(mut self, other: &Vorton) -> Self::Output {
+    let volume = self.volume + other.volume;
+    let self_vort_vol = self.vorticity.norm()*self.volume;
+    let other_vort_vol = other.vorticity.norm()*other.volume;
+    let position = Point3::<f64>::origin()
+      + ( (&self.position - &Point3::<f64>::origin()).scale(self_vort_vol)
+          + (&other.position - &Point3::<f64>::origin()).scale(other_vort_vol)
+        ).scale(1.0 / (self_vort_vol + other_vort_vol));
+    let vorticity = (self.vorticity.scale(self.volume)
+      + other.vorticity.scale(other.volume))
+      .scale(1.0/volume);
+    println!("Adding {self:?} + {other:?} = {position:?}/{vorticity:?}/{volume}");
+    Vorton::new(
+            position,
+            vorticity,
+            volume
+    )
+  }
+}
+*/
 
 /*
 impl Aggregatable for Vorton {
     fn aggregate(&self, other: &Vorton) -> Vorton {
-        let volume = self.volume + other.volume;
-        let self_vort_vol = self.vorticity.norm()*self.volume;
-        let other_vort_vol = other.vorticity.norm()*other.volume;
-        let position = (self.position.map(|e| e*self_vort_vol)
-            + (other.position.map(|e| e*other_vort_vol) - Point3::<f64>::origin()))
-            .map(|e| e * 1.0 / (self_vort_vol + other_vort_vol));
-        let vorticity = (self.vorticity.scale(self.volume)
-            + other.vorticity.scale(other.volume))
-            .scale(1.0/volume);
-        Vorton::new(
-            position,
-            vorticity,
-            volume
-        )
     }
 }
 */
