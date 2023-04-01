@@ -11,6 +11,7 @@ pub use algorithms::{VortonToVelocity,
 mod sim; pub use sim::{UniformGrid, Vorton, SuperVorton};
 mod configuration; pub use configuration::{InitialConditions, Configuration};
 mod profiler; pub use profiler::Profiler;
-mod output; pub use output::{Grid, GridBuilder};
+mod output; pub use output::{Grid, GridBuilder, VortonCollection};
 mod simulation; pub use simulation::{Simulation, VortonToVelocityAlgorithm};
+mod geometry; pub use geometry::{Geometry, GeometryTrait};
 

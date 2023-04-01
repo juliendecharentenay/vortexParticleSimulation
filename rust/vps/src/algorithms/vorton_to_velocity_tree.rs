@@ -7,6 +7,7 @@ mod grid; pub use grid::Grid;
 #[builder(pattern = "owned")]
 pub struct VortonToVelocityTree<'a> {
   vortons: &'a Vec<Vorton>,
+  velocity: &'a Vector3<f64>,
   n_grids: usize,
   #[builder(setter(skip))]
   grids: Vec<Grid>,
@@ -57,8 +58,8 @@ impl<'a> Info<'a> {
 impl<'a> VortonToVelocity for VortonToVelocityTree<'a> {
   fn velocity_at(&self, position: &Point3<f64>) -> Result<Vector3<f64>, Box<dyn std::error::Error>> {
     if self.grids.len() != self.infos.len() { return Err("Not the same length...".into()); }
-    let v = self.traverse(position, 0, (0, 0, 0))?;
-    Ok(v)
+    let r = self.velocity + self.traverse(position, 0, (0, 0, 0))?;
+    Ok(r)
   }
 }
 

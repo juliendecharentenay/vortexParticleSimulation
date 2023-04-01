@@ -28,19 +28,45 @@ impl Vorton {
         }
     }
 
-    pub fn is_inside(&self, position: &Point3<f64>) -> bool {
-      self.ratio(&(position - &self.position)) <= 8.0
+    pub fn make_velocity_at(position: Point3<f64>, volume: f64,
+               (target_point, target_velocity): (&Point3<f64>, &Vector3<f64>)) -> Result<Vorton, Box<dyn std::error::Error>> {
+      let r = target_point - &position;
+      let d = r.norm();
+      if d < 1e-6 { 
+        println!("position: {position:?}\nvolume: {volume},\ntarget_point: {target_point:?},\ntarget_velocity: {target_velocity:?}\n");
+        return Err("Target and position are too close".into()); 
+      }
+      let vorticity_vector = r.cross(target_velocity);
+      if vorticity_vector.norm().abs() < 1e-6 { return Err("Unable to make velocity, position and target points are not appropriately positioned".into()); }
+      let vorticity = vorticity_vector.normalize().scale(3.0*Self::ratio(&r, volume).max(8.0) / d * target_velocity.norm());
+      let r = Vorton { volume, position, vorticity } ;
+
+      // check
+/*
+      let v = r.velocity_contribution(target_point);
+      if (v.x - target_velocity.x).abs() > 1e-1
+      || (v.y - target_velocity.y).abs() > 1e-1
+      || (v.z - target_velocity.z).abs() > 1e-1 {
+        println!("check: {v:?}\ntarget: {target_velocity:?}");
+        return Err("Not right".into());
+      }
+*/
+      Ok( r )
     }
 
-    fn ratio(&self, r: &Vector3<f64>) -> f64 {
-      4.0 / 3.0 * std::f64::consts::PI * r.norm().powi(3) / self.volume
+    pub fn is_inside(&self, position: &Point3<f64>) -> bool {
+      Self::ratio(&(position - &self.position), self.volume) <= 8.0
+    }
+
+    fn ratio(r: &Vector3<f64>, volume: f64) -> f64 {
+      4.0 / 3.0 * std::f64::consts::PI * r.norm().powi(3) / volume
     }
 
     pub fn velocity_contribution(&self, position: &Point3<f64>) -> Vector3<f64> {
         let r = position - &self.position;
         self.vorticity
             .cross(&r)
-            .scale(1.0/(3.0 * self.ratio(&r).max(8.0)))
+            .scale(1.0/(3.0 * Self::ratio(&r, self.volume).max(8.0)))
     }
 
     pub fn advect(&self, velocity: &Vector3<f64>, time_step: f64) -> Vorton {

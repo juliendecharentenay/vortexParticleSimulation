@@ -1,10 +1,9 @@
 use std::time::SystemTime;
 use std::fs::{self, File};
 use std::path::Path;
-use std::io::Write;
 
 use crate::{config};
-use vortex_particle_simulation::{Simulation, Profiler, VortonToVelocityAlgorithm};
+use vortex_particle_simulation::{Simulation, Profiler, VortonToVelocityAlgorithm, Geometry};
 
 pub fn run(config: config::Config) -> Result<(), Box<dyn std::error::Error>> {
   use std::convert::TryFrom;
@@ -16,9 +15,12 @@ pub fn run(config: config::Config) -> Result<(), Box<dyn std::error::Error>> {
       config::Initial::Restart(f) => Some(serde_json::from_reader(File::open(f)?)?),
       config::Initial::Nothing    => None,
     };
-
+    
     match &mut sim {
       Some(sim) => {
+          /* Hard-coded */
+          sim.push_geometry(Geometry::cube())?;
+
           match &config.vorton_to_velocity_algorithm {
             config::VortonToVelocityAlgorithm::Simple => {
               sim.use_vorton_to_velocity(VortonToVelocityAlgorithm::Simple);
@@ -28,11 +30,13 @@ pub fn run(config: config::Config) -> Result<(), Box<dyn std::error::Error>> {
             },
           };
 
-          /* Treat the simulation */
+          /* Run the simulation */
           match &config.action {
               config::Action::Run     => run_simulation(&config, sim)?,
               config::Action::Nothing => (),
           };
+
+          /* Save the simulation */
           match &config.save {
               config::Save::Save(f) => Ok(serde_json::to_writer_pretty(File::create(f)?, &sim)?),
               config::Save::Nothing => Ok(()),
@@ -62,7 +66,13 @@ fn run_simulation(config: &config::Config, simulation: &mut Simulation) -> Resul
 
 fn output(config: &config::Config, simulation: &Simulation) -> Result<(), Box<dyn std::error::Error>> {
     match &config.output {
-        config::Output::CSV(dir) => output_vortex_particles_to_csv(dir, simulation),
+        config::Output::CSV(dir) => {
+          let file = open_file(dir, format!("vortex_particles_{}.csv", simulation.iteration()))?;
+          vortex_particle_simulation::VortonCollection::from(simulation)
+          .to_writer_csv(file, "vorticity", |v| Ok(v.vorticity().norm()))?;
+          Ok(())
+        },
+
         config::Output::Velocity(dir) => {
           let vorton_to_velocity = simulation.get_vorton_to_velocity()?;
           let file = open_file(dir, format!("velocity_{}.csv", simulation.iteration()))?;
@@ -79,19 +89,5 @@ fn open_file(dir: &String, fname: String) -> Result<std::fs::File, Box<dyn std::
   let path = Path::new(".").join(dir);
   if ! path.exists() { fs::create_dir_all(path.clone())?;}
   Ok(File::create(path.join(fname))?)
-}
-
-fn output_vortex_particles_to_csv(dir: &String, simulation: &Simulation) -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = open_file(dir, format!("vortex_particles_{}.csv", simulation.iteration()))?;
-    file.write_all(b"x coord, y coord, z coord, vorticity\n")?;
-    for vorton in simulation.vortons().iter() { 
-        file.write_all(
-            format!("{}, {}, {}, {}\n", 
-                    vorton.position().x, vorton.position().y, 
-                    vorton.position().z, vorton.vorticity().norm()
-                    ).as_bytes()
-            )?;
-    }
-    Ok(())
 }
 

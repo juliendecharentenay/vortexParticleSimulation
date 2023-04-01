@@ -1,5 +1,6 @@
-use crate::{sim, Point3, Profiler, Vector3, Vorton,
+use crate::{sim, Profiler, Vector3, Vorton,
   VortonToVelocity, VortonToVelocitySimpleBuilder, VortonToVelocityTreeBuilder, 
+  Geometry, 
 };
 
 /// Vortex simulation root object
@@ -12,6 +13,7 @@ pub struct Simulation {
     vortons: Vec<sim::Vorton>,
     #[serde(default="default_vorton_to_velocity")]
     vorton_to_velocity_algorithm: VortonToVelocityAlgorithm,
+    geometries: Vec<Geometry>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -19,7 +21,6 @@ pub enum VortonToVelocityAlgorithm {
   Simple,
   Tree(usize),
 }
-
 
 fn default_vorton_to_velocity() -> VortonToVelocityAlgorithm {
   VortonToVelocityAlgorithm::Simple
@@ -36,11 +37,16 @@ impl std::convert::TryFrom<&crate::configuration::Configuration> for Simulation 
       free_stream_velocity: c.get_initial_conditions().free_stream_velocity(),
       vortons: crate::sim::functions::make_vortons(&c)?,
       vorton_to_velocity_algorithm: VortonToVelocityAlgorithm::Simple,
+      geometries: Vec::new(),
     })
   }
 }
 
 impl Simulation {
+    pub fn push_geometry(&mut self, geometry: Geometry) -> Result<(), Box<dyn std::error::Error>> {
+      self.geometries.push(geometry); Ok(())
+    }
+
     /*
      * Accessor functions
      */
@@ -54,9 +60,9 @@ impl Simulation {
     pub fn get_vorton_to_velocity(&self) -> Result<Box<dyn VortonToVelocity + '_>, Box<dyn std::error::Error>> {
       match &self.vorton_to_velocity_algorithm {
         VortonToVelocityAlgorithm::Simple 
-        => Ok(Box::new(VortonToVelocitySimpleBuilder::default().vortons(&self.vortons).build()?)),
+        => Ok(Box::new(VortonToVelocitySimpleBuilder::default().vortons(&self.vortons).velocity(&self.free_stream_velocity).build()?)),
         VortonToVelocityAlgorithm::Tree(n_grids) 
-        => Ok(Box::new(VortonToVelocityTreeBuilder::default().vortons(&self.vortons).n_grids(*n_grids).build()?.initialize()?)),
+        => Ok(Box::new(VortonToVelocityTreeBuilder::default().vortons(&self.vortons).velocity(&self.free_stream_velocity).n_grids(*n_grids).build()?.initialize()?)),
       }
     }
 
@@ -83,8 +89,25 @@ impl Simulation {
         where F: Fn() -> f64
     {
         self.iteration += 1; self.time += time_step;
+        println!("start: {} vortons", self.vortons.len());
         self.step_vorticity(time_step, profiler)?; // Simulation::make_timer(profiler, "step_vorticity"))?;
         self.advect_vortons(time_step, profiler)?; // Simulation::make_timer(profiler, "advect_vortons"))?;
+        for g in self.geometries.iter_mut() { g.step(time_step)?; }
+        
+        self.vortons = self.vortons.iter()
+             .filter(|v| 
+                self.geometries.iter()
+                .fold(Ok(true), |r: Result<bool, Box<dyn std::error::Error>>, g| 
+                                   r.and_then(|r| Ok(r && !g.is_inside(v.position())?))
+                     ).unwrap_or(false)
+             )
+             .cloned()
+             .collect();
+        println!("Geometry: {} vortons", self.vortons.len());
+        
+        self.enforce_geometry()?;
+        println!("Enforce: {} vortons", self.vortons.len());
+        
         Ok(())
     }
 
@@ -94,6 +117,7 @@ impl Simulation {
     }
     */
 
+/*
     /// Report the velocity at a given point
     pub fn velocity_at(&self, position: &Point3<f64>) -> Result<Vector3<f64>, Box<dyn std::error::Error>> {
       Ok(
@@ -101,14 +125,20 @@ impl Simulation {
                                   self.free_stream_velocity.clone(),
                                   self.vortons.iter())
       )
-/*
-      Ok(
-        self.free_stream_velocity
-        + self.vorton_to_velocity.velocity_at(position)?
-      )
-*/
     }
+*/
 
+    fn enforce_geometry(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+      self.vortons.append(&mut {
+        let vorton_to_velocity = self.get_vorton_to_velocity()?;
+        self.geometries.iter()
+            .map(|g| g.enforce(|p| vorton_to_velocity.velocity_at(p)))
+            .collect::<Result<Vec<Vec<Vorton>>, Box<dyn std::error::Error>>>()?
+            .iter_mut()
+            .fold(Vec::new(), |mut r, i| {r.append(i); r})
+      });
+      Ok(())
+    }
     /*
      * Step helper functions
      */
@@ -121,12 +151,7 @@ impl Simulation {
           self.vortons.iter()
             .filter(|vorton| vorton.vorticity().norm() > 1e-5)
             .map(|vorton|  {
-/*
-                let v = sim::functions::velocity_at(vorton.position(), 
-                                                    self.free_stream_velocity.clone(),
-                                                    self.vortons.iter().filter(|&vo| ! std::ptr::eq(vo, vorton)));
-*/
-                let v = &self.free_stream_velocity + vorton_to_velocity.velocity_at(vorton.position())?;
+                let v = vorton_to_velocity.velocity_at(vorton.position())?;
                 Ok(vorton.advect(&v, time_step))
             })
             .collect::<Result<Vec<Vorton>, Box<dyn std::error::Error>>>()?

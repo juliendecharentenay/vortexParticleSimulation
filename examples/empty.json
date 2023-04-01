@@ -1,0 +1,12 @@
+{
+	"n_vortons": 10000,
+	"initial_conditions": {
+		"InitialConditionEmpty": {
+		}
+	},
+	"domain": {
+		"min": [-10.0, -10.0, -10.0],
+		"max": [ 10.0,  10.0,  10.0]
+	},
+	"viscosity": 1e-5
+}

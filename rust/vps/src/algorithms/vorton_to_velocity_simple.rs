@@ -6,6 +6,7 @@ use crate::{VortonToVelocity, Vorton, Point3, Vector3};
 #[builder(pattern = "owned")]
 pub struct VortonToVelocitySimple<'a> {
   vortons: &'a Vec<Vorton>,
+  velocity: &'a Vector3<f64>,
 }
 
 impl<'a> VortonToVelocity for VortonToVelocitySimple<'a> {
@@ -13,7 +14,7 @@ impl<'a> VortonToVelocity for VortonToVelocitySimple<'a> {
     Ok(
     self.vortons.iter()
     .map(|v| v.velocity_contribution(position))
-    .fold(Vector3::new(0.0, 0.0, 0.0), |r, v| r + v)
+    .fold(self.velocity.clone(), |r, v| r + v)
     )
   }
 }
